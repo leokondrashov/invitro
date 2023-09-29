@@ -84,6 +84,13 @@ type LoaderConfiguration struct {
 	Width                        int  `json:"Width"`
 	Depth                        int  `json:"Depth"`
 	VSwarm                       bool `json:"VSwarm"`
+
+	BackgroundCommands []Command `json:"BackgroundCommands"`
+}
+
+type Command struct {
+	Timestamp int64  `json:"Timestamp"`
+	Command   string `json:"Command"`
 }
 
 func ReadConfigurationFile(path string) LoaderConfiguration {
