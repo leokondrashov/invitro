@@ -26,9 +26,10 @@ package config
 
 import (
 	"encoding/json"
-	"github.com/vhive-serverless/loader/pkg/common"
 	"os"
 	"strings"
+
+	"github.com/vhive-serverless/loader/pkg/common"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -79,7 +80,13 @@ type LoaderConfiguration struct {
 	VSwarm                       bool `json:"VSwarm"`
 
 	// used only if platform is dirigent
-	DirigentConfigPath string `json:"DirigentConfigPath"`
+	DirigentConfigPath string    `json:"DirigentConfigPath"`
+	BackgroundCommands []Command `json:"BackgroundCommands"`
+}
+
+type Command struct {
+	Timestamp int64  `json:"Timestamp"`
+	Command   string `json:"Command"`
 }
 
 type WorkflowFunction struct {
