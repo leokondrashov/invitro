@@ -26,6 +26,9 @@ package clients
 
 import (
 	"context"
+	"strings"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vhive-serverless/loader/pkg/common"
@@ -35,8 +38,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"strings"
-	"time"
 
 	mc "github.com/vhive-serverless/loader/pkg/metric"
 )
@@ -146,7 +147,7 @@ func (i *grpcInvoker) Invoke(function *common.Function, runtimeSpec *common.Runt
 
 	grpcStart := time.Now()
 
-	conn, err := grpc.NewClient("passthrough:///" + function.Endpoint, dialOptions...)
+	conn, err := grpc.NewClient("passthrough:///"+function.Endpoint, dialOptions...)
 	if err != nil {
 		logrus.Debugf("Failed to establish a gRPC connection - %v\n", err)
 

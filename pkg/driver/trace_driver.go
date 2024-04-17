@@ -136,6 +136,7 @@ func (d *Driver) invokeFunction(metadata *InvocationMetadata) {
 		record.Phase = int(metadata.Phase)
 		record.Instance = fmt.Sprintf("%s%s", node.Value.(*common.Node).DAG, record.Instance)
 		record.InvocationID = metadata.InvocationID
+		record.Function = function.Name
 
 		if d.Configuration.DirigentConfiguration != nil &&
 			d.Configuration.DirigentConfiguration.AsyncMode && record.AsyncResponseID != "" {
