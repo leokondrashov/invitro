@@ -3,15 +3,17 @@ package deployment
 import (
 	"bytes"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/vhive-serverless/loader/pkg/common"
-	"github.com/vhive-serverless/loader/pkg/config"
 	"math"
 	"os/exec"
 	"regexp"
 	"runtime"
 	"strconv"
 	"sync"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/vhive-serverless/loader/pkg/common"
+	"github.com/vhive-serverless/loader/pkg/config"
 )
 
 const (
@@ -70,6 +72,14 @@ func (*knativeDeployer) Deploy(cfg *config.Configuration) {
 	}
 
 	deployed.Wait()
+	start := time.Now()
+	cmd := exec.Command("kubectl", "annotate", "--overwrite", "PodAutoscaler", "-n", "default", "--selector=app=server", "autoscaling.knative.dev/min-scale=0")
+	err := cmd.Start()
+	if err != nil {
+		log.Fatalf("Failed to execute script: %v", err)
+	}
+	elapsed := time.Since(start)
+	log.Printf("Script executed in %s", elapsed)
 }
 
 func (*knativeDeployer) Clean() {
