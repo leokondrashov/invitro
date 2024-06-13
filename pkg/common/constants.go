@@ -54,6 +54,7 @@ const (
 	Exponential IatDistribution = iota
 	Uniform
 	Equidistant
+	Gamma
 )
 
 // Invocations for each (sec/minute) range

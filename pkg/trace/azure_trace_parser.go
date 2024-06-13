@@ -28,7 +28,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -37,6 +36,7 @@ import (
 	"github.com/gocarina/gocsv"
 	"github.com/vhive-serverless/loader/pkg/common"
 	"github.com/vhive-serverless/loader/pkg/generator"
+	"golang.org/x/exp/rand"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -56,7 +56,7 @@ func NewAzureParser(directoryPath string, totalDuration int, yamlPath string) *A
 		DirectoryPath:         directoryPath,
 		yamlPath:              yamlPath,
 		duration:              totalDuration,
-		functionNameGenerator: rand.New(rand.NewSource(time.Now().UnixNano())),
+		functionNameGenerator: rand.New(rand.NewSource(uint64(time.Now().UnixNano()))),
 	}
 }
 
@@ -98,7 +98,7 @@ func (p *AzureTraceParser) extractFunctions(invocations *[]common.FunctionInvoca
 	runtimeByHashFunction := createRuntimeMap(runtime)
 	memoryByHashFunction := createMemoryMap(memory)
 
-	gen := rand.New(rand.NewSource(time.Now().UnixNano()))
+	gen := rand.New(rand.NewSource(uint64(time.Now().UnixNano())))
 
 	for i := 0; i < len(*invocations); i++ {
 		invocationStats := (*invocations)[i]

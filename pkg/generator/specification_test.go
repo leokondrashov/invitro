@@ -584,7 +584,7 @@ func TestSerialGenerateIAT(t *testing.T) {
 		},
 	}
 
-	var seed int64 = 123456789
+	var seed uint64 = 123456789
 	epsilon := 10e-3
 
 	for _, test := range tests {
@@ -794,7 +794,7 @@ func TestGenerateExecutionSpecifications(t *testing.T) {
 		},
 	}
 
-	var seed int64 = 123456789
+	var seed uint64 = 123456789
 
 	for _, test := range tests {
 		t.Run(test.testName, func(t *testing.T) {

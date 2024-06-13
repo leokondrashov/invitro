@@ -25,7 +25,9 @@
 package generator
 
 import (
-	"math/rand"
+	"golang.org/x/exp/rand"
+
+	"gonum.org/v1/gonum/stat/distuv"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/vhive-serverless/loader/pkg/common"
@@ -35,13 +37,15 @@ import (
 
 type SpecificationGenerator struct {
 	iatRand  *rand.Rand
+	gamma    *distuv.Gamma
 	specRand *rand.Rand
 }
 
-func NewSpecificationGenerator(seed int64) *SpecificationGenerator {
+func NewSpecificationGenerator(seed uint64) *SpecificationGenerator {
 	return &SpecificationGenerator{
 		iatRand:  rand.New(rand.NewSource(seed)),
 		specRand: rand.New(rand.NewSource(seed)),
+		gamma:    &distuv.Gamma{Alpha: 0.25, Beta: 4, Src: rand.NewSource(seed)},
 	}
 }
 
@@ -66,6 +70,8 @@ func (s *SpecificationGenerator) generateIATPerGranularity(numberOfInvocations i
 		case common.Exponential:
 			// NOTE: Serverless in the Wild - pg. 6, paragraph 1
 			iat = s.iatRand.ExpFloat64()
+		case common.Gamma:
+			iat = s.gamma.Rand()
 		case common.Uniform:
 			iat = s.iatRand.Float64()
 		case common.Equidistant:
@@ -92,7 +98,7 @@ func (s *SpecificationGenerator) generateIATPerGranularity(numberOfInvocations i
 		totalDuration = 1
 	}
 
-	if iatDistribution == common.Uniform || iatDistribution == common.Exponential {
+	if iatDistribution == common.Uniform || iatDistribution == common.Exponential || iatDistribution == common.Gamma {
 		// Uniform: 		we need to scale IAT from [0, 1) to [0, 60 seconds)
 		// Exponential: 	we need to scale IAT from [0, +MaxFloat64) to [0, 60 seconds)
 		for i := 0; i < len(iatResult); i++ {
@@ -290,7 +296,7 @@ func GenerateMemorySpec(gen *rand.Rand, memQtl float64, memStats *common.Functio
 	return memory
 }
 
-// Sample the runtime duration & memory usage for a function, given its summary statistics. 
+// Sample the runtime duration & memory usage for a function, given its summary statistics.
 func (s *SpecificationGenerator) generateExecutionSpecs(function *common.Function) common.RuntimeSpecification {
 	runStats, memStats := function.RuntimeStats, function.MemoryStats
 	if runStats.Count <= 0 || memStats.Count <= 0 {

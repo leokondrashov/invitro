@@ -27,12 +27,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/vhive-serverless/loader/pkg/generator"
+	"golang.org/x/exp/slices"
 	"os"
 	"time"
-
-	"github.com/vhive-serverless/loader/pkg/generator"
-
-	"golang.org/x/exp/slices"
 
 	"github.com/vhive-serverless/loader/pkg/common"
 	"github.com/vhive-serverless/loader/pkg/config"
@@ -126,6 +124,10 @@ func parseIATDistribution(cfg *config.LoaderConfiguration) (common.IatDistributi
 		return common.Exponential, false
 	case "exponential_shift":
 		return common.Exponential, true
+	case "gamma":
+		return common.Gamma, false
+	case "gamma_shift":
+		return common.Gamma, true
 	case "uniform":
 		return common.Uniform, false
 	case "uniform_shift":
