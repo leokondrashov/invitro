@@ -44,23 +44,23 @@ var (
 	tracePath       = flag.String("tracePath", "data/traces/", "Path to folder where the trace is located")
 	outputFile      = flag.String("outputFile", "output.csv", "Path to output file")
 	duration        = flag.Int("duration", 1440, "Duration of the traces in minutes")
-	cpuQuota        = flag.Bool("cpuQuota", true, "Whether to use the CPU quota or not")
-	iatDistribution = flag.String("iatDistribution", "exponential", "IAT distribution, one of [exponential, uniform, equidistant]")
-	randSeed        = flag.Int64("randSeed", 42, "Seed for the random number generator")
+	cpuQuota        = flag.Bool("cpuQuota", false, "Whether to use the CPU quota or not")
+	iatDistribution = flag.String("iatDistribution", "exponential", "IAT distribution, one of [exponential(_shift), uniform(_shift), equidistant(_shift)]")
+	randSeed        = flag.Uint64("randSeed", 42, "Seed for the random number generator")
 )
 
 type loaderRecord struct {
-	Millisecond  int    `csv:"millisecond"`
-	FunctionHash string `csv:"functionHash"`
-	Runtime      int    `csv:"runtime"`
-	Memory       int    `csv:"memory"`
-	MemoryUsage  int    `csv:"maxMemory"`
-	Cpu          int    `csv:"cpu"`
+	Millisecond int `csv:"millisecond"`
+	FunctionNum int `csv:"functionNum"`
+	Runtime     int `csv:"runtime"`
+	Memory      int `csv:"memory"`
+	MemoryUsage int `csv:"maxMemory"`
+	Cpu         int `csv:"cpu"`
 }
 
 type minuteTimelineRecord struct {
 	Minute         int     `csv:"minute"`
-	FunctionHash   string  `csv:"functionHash"`
+	FunctionNum    int     `csv:"functionNum"`
 	AvgRuntime     float64 `csv:"avgRuntime"`
 	AvgMemory      float64 `csv:"avgMemory"`
 	AvgCpu         float64 `csv:"avgCpu"`
@@ -97,11 +97,23 @@ func generateLoad(outputFilename string, millisecondScale bool) {
 	var wg2 sync.WaitGroup
 
 	var iatType common.IatDistribution
+	shift := false
 	switch *iatDistribution {
 	case "exponential":
 		iatType = common.Exponential
+	case "exponential_shift":
+		iatType = common.Exponential
+		shift = true
+	case "gamma":
+		iatType = common.Gamma
+	case "gamma_shift":
+		iatType = common.Gamma
+		shift = true
 	case "uniform":
 		iatType = common.Uniform
+	case "uniform_shift":
+		iatType = common.Uniform
+		shift = true
 	case "equidistant":
 		iatType = common.Equidistant
 	default:
@@ -126,20 +138,20 @@ func generateLoad(outputFilename string, millisecondScale bool) {
 	specGenerator := spec.NewSpecificationGenerator(*randSeed)
 
 	for i, function := range functions {
-		spec := specGenerator.GenerateInvocationData(function, iatType, false, common.MinuteGranularity)
+		spec := specGenerator.GenerateInvocationData(function, iatType, shift, common.MinuteGranularity)
 		functions[i].Specification = spec
 	}
 
-	for _, function := range functions {
+	for i, function := range functions {
 		wg.Add(1)
-		go generateFunctionTimeline(function, writer, &wg, millisecondScale)
+		go generateFunctionTimeline(function, i, writer, &wg, millisecondScale)
 	}
 	wg.Wait()
 	close(writer)
 	wg2.Wait()
 }
 
-func generateFunctionTimeline(function *common.Function, writer chan any, wg *sync.WaitGroup, millisecondScale bool) {
+func generateFunctionTimeline(function *common.Function, orderNum int, writer chan any, wg *sync.WaitGroup, millisecondScale bool) {
 	defer wg.Done()
 
 	IAT, runtimeSpecification := function.Specification.IAT, function.Specification.RuntimeSpecification
@@ -186,12 +198,12 @@ func generateFunctionTimeline(function *common.Function, writer chan any, wg *sy
 		if millisecondScale {
 			// Write the millisecond scale timeline
 			writer <- loaderRecord{
-				Millisecond:  int((time.Duration(previousIATSum) * time.Microsecond) / time.Millisecond),
-				FunctionHash: function.InvocationStats.HashApp,
-				Runtime:      duration,
-				MemoryUsage:  runtimeSpec.Memory,
-				Memory:       int(function.MemoryStats.Percentile100),
-				Cpu:          cpu,
+				Millisecond: int((time.Duration(previousIATSum) * time.Microsecond) / time.Millisecond),
+				FunctionNum: orderNum,
+				Runtime:     duration,
+				MemoryUsage: runtimeSpec.Memory,
+				Memory:      int(function.MemoryStats.Percentile100),
+				Cpu:         cpu,
 			}
 		} else {
 			// Add the millisecond data to list, to be averaged later
@@ -207,7 +219,7 @@ func generateFunctionTimeline(function *common.Function, writer chan any, wg *sy
 				// Generated one minute of the trace, write the average
 				writer <- minuteTimelineRecord{
 					Minute:         minuteIndex,
-					FunctionHash:   function.InvocationStats.HashApp,
+					FunctionNum:    orderNum,
 					AvgRuntime:     float64(runtimes) / float64(time.Millisecond),
 					AvgMemory:      float64(memory) / float64(time.Millisecond),
 					AvgCpu:         float64(cpuSum) / float64(time.Millisecond),
