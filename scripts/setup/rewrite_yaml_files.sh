@@ -126,7 +126,7 @@ cat serving-core.yaml |
         (
             .spec.template.metadata.labels.app == "activator"
         ) | .spec.template.spec.containers[0].image
-    ) = "lkondras/activator-ecd51ca5034883acbe737fde417a3d86:rr-policy"' |
+    ) = "lkondras/activator-ecd51ca5034883acbe737fde417a3d86:kwok"' |
     yq '
     (
         select
