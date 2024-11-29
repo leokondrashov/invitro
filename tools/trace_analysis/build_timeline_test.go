@@ -206,3 +206,151 @@ func TestGenerateTimeline(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateTimelineCompressed(t *testing.T) {
+	eps := 1e-9
+	tests := []struct {
+		name        string
+		iat         common.IATMatrix
+		runtimeSpec common.RuntimeSpecificationMatrix
+		expected    []TimelineEntry
+	}{
+		{
+			name: "single inv",
+			iat: common.IATMatrix{
+				[]float64{0, 60000000},
+			},
+			runtimeSpec: common.RuntimeSpecificationMatrix{
+				[]common.RuntimeSpecification{
+					{
+						Runtime: 1,
+						Memory:  1,
+					},
+				},
+			},
+			expected: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1e-3,
+					Concurrency: 0,
+				},
+			},
+		},
+		{
+			name: "single long inv",
+			iat: common.IATMatrix{
+				[]float64{0, 60000000},
+			},
+			runtimeSpec: common.RuntimeSpecificationMatrix{
+				[]common.RuntimeSpecification{
+					{
+						Runtime: 1000,
+						Memory:  1,
+					},
+				},
+			},
+			expected: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 0,
+				},
+			},
+		},
+		{
+			name: "two inv",
+			iat: common.IATMatrix{
+				[]float64{0, 10000, 60000000 - 10000},
+			},
+			runtimeSpec: common.RuntimeSpecificationMatrix{
+				[]common.RuntimeSpecification{
+					{
+						Runtime: 1,
+						Memory:  1,
+					},
+					{
+						Runtime: 1,
+						Memory:  1,
+					},
+				},
+			},
+			expected: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 0,
+				},
+				{
+					Timestamp:   10e-3,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   11e-3,
+					Concurrency: 0,
+				},
+			},
+		},
+		{
+			name: "two overlapping inv",
+			iat: common.IATMatrix{
+				[]float64{0, 10000, 60000000 - 10000},
+			},
+			runtimeSpec: common.RuntimeSpecificationMatrix{
+				[]common.RuntimeSpecification{
+					{
+						Runtime: 100,
+						Memory:  1,
+					},
+					{
+						Runtime: 100,
+						Memory:  1,
+					},
+				},
+			},
+			expected: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   10e-3,
+					Concurrency: 2,
+				},
+				{
+					Timestamp:   100e-3,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   110e-3,
+					Concurrency: 0,
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			function := &common.Function{}
+			injectInvocationData(function, test.iat, test.runtimeSpec)
+
+			timeline := generateFunctionTimelineCompressed(function, 1)
+			if len(timeline) != len(test.expected) {
+				t.Errorf("Wrong timeline length: %v, expected %v", timeline, test.expected)
+			}
+			for i, entry := range timeline {
+				if entry.Timestamp-test.expected[i].Timestamp > eps || entry.Concurrency != test.expected[i].Concurrency {
+					t.Errorf("Wrong entry at %v: %v, expected %v", i, entry, test.expected[i])
+				}
+			}
+		})
+	}
+}
