@@ -86,6 +86,8 @@ func coldStarts(outputFilename string) {
 	default:
 		log.Fatal("Unsupported IAT distribution.")
 	}
+	granularity := 1 * time.Millisecond
+
 	writer := make(chan interface{}, 1000)
 
 	traceParser := trace.NewAzureParser(*tracePath, *duration)
@@ -116,25 +118,30 @@ func coldStarts(outputFilename string) {
 	for i, function := range functions {
 		wg.Add(1)
 		limiter <- struct{}{}
-		go generateFunctionTimeline(function, i, writer, &wg, limiter)
+		go func() {
+			defer wg.Done()
+			defer func() { <-limiter }()
+
+			timeline := generateFunctionTimeline(function, *duration, granularity)
+			getColdStarts(timeline, *keepalive*int(time.Second/granularity), i, writer)
+		}()
 	}
 	wg.Wait()
 	close(writer)
 	wg2.Wait()
 }
 
-func generateFunctionTimeline(function *common.Function, orderNum int, writer chan interface{}, wg *sync.WaitGroup, limiter chan struct{}) {
-	defer wg.Done()
-	defer func() { <-limiter }()
+func generateFunctionTimeline(function *common.Function, duration int, granularity time.Duration) []int {
 	minuteIndex, invocationIndex := 0, 0
 	sum := 0.0
 
 	IAT, runtimeSpecification := function.Specification.IAT, function.Specification.RuntimeSpecification
 
-	concurrency := make([]int, *duration*60*1e3+common.MaxExecTimeMilli)
+	maxTime := duration*60*int(time.Second/granularity) + common.MaxExecTimeMilli*int(time.Millisecond/granularity)
+	concurrency := make([]int, maxTime)
 
 	for {
-		if minuteIndex >= *duration {
+		if minuteIndex >= duration {
 			break
 		} else if function.InvocationStats.Invocations[minuteIndex] == 0 {
 			minuteIndex++
@@ -143,12 +150,13 @@ func generateFunctionTimeline(function *common.Function, orderNum int, writer ch
 			continue
 		}
 
-		sum += IAT[minuteIndex][invocationIndex]
+		sum += IAT[minuteIndex][invocationIndex] / 1e6
 
-		duration := runtimeSpecification[minuteIndex][invocationIndex].Runtime
-		startTime := int((time.Duration(minuteIndex)*time.Minute + time.Duration(sum)*time.Microsecond) / time.Millisecond)
+		duration := runtimeSpecification[minuteIndex][invocationIndex].Runtime * int(time.Millisecond/granularity)
+		// fmt.Println(sum)
+		startTime := minuteIndex*int(time.Minute/granularity) + int(sum*float64(time.Second/granularity))
 		// log.Infof("Function %s, order %d, minute %d, invocation %d, start time %d, duration %d", function.Name, orderNum, minuteIndex, invocationIndex, startTime, duration)
-		for i := startTime; i <= startTime+duration; i++ {
+		for i := startTime; i < startTime+duration; i++ {
 			concurrency[i]++
 		}
 		// log.Infof("%v", concurrency[startTime:startTime+duration])
@@ -161,6 +169,10 @@ func generateFunctionTimeline(function *common.Function, orderNum int, writer ch
 		}
 	}
 
+	return concurrency
+}
+
+func getColdStarts(concurrency []int, keepalive int, orderNum int, writer chan interface{}) {
 	capacity := 0
 	for i, c := range concurrency {
 		if i == 0 {
@@ -168,10 +180,10 @@ func generateFunctionTimeline(function *common.Function, orderNum int, writer ch
 		} else if c <= concurrency[i-1] {
 			continue
 		} else {
-			capacity = slices.Max(concurrency[max(0, i-*keepalive*1e3):i])
+			capacity = slices.Max(concurrency[max(0, i-keepalive):i])
 		}
 		for ; capacity < c; capacity++ {
-			writer <- &coldStartRecord{
+			writer <- coldStartRecord{
 				Timestamp:   i,
 				FunctionNum: orderNum,
 			}
