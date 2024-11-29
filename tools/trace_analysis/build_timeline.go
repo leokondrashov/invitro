@@ -66,7 +66,7 @@ func totalInvocations(IAT common.IATMatrix) int {
 	return total
 }
 
-func generateFunctionTimelineCompressed(function *common.Function, duration int) []TimelineEntry {
+func generateFunctionTimelineCompressed(function *common.Function, duration int, slowdown float64) []TimelineEntry {
 	minuteIndex, invocationIndex := 0, 0
 	sum := 0.0
 
@@ -85,7 +85,7 @@ func generateFunctionTimelineCompressed(function *common.Function, duration int)
 
 		sum += IAT[minuteIndex][invocationIndex] / float64(time.Second/time.Microsecond)
 
-		duration := float64(runtimeSpecification[minuteIndex][invocationIndex].Runtime) / float64(time.Second/time.Millisecond)
+		duration := float64(runtimeSpecification[minuteIndex][invocationIndex].Runtime) / float64(time.Second/time.Millisecond) * slowdown
 		startTime := float64(minuteIndex*int(time.Minute/time.Second)) + sum
 		timeline = append(timeline, TimelineEntry{
 			Timestamp:   startTime,

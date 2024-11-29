@@ -47,6 +47,7 @@ var (
 	randSeed        = flag.Uint64("randSeed", 42, "Seed for the random number generator")
 	keepalive       = flag.Int("keepalive", 6, "Keepalive period in seconds")
 	typeFlag        = flag.String("type", "coldstart", "Type of analysis to perform, one of [coldstart, cpu]")
+	slowdown        = flag.Float64("slowdown", 1.0, "Slowdown factor for each invocation for the analysis")
 )
 
 type coldStartRecord struct {
@@ -63,7 +64,7 @@ func main() {
 	case "coldstart":
 		coldStarts(functions, *duration, *keepalive, written, writer)
 	case "cpu":
-		estimateCPUUsage(functions, *duration, written, writer)
+		estimateCPUUsage(functions, *duration, *slowdown, written, writer)
 	}
 }
 

@@ -13,7 +13,7 @@ type cpuRecord struct {
 	CPU       float64 `csv:"cpu"`
 }
 
-func estimateCPUUsage(functions []*common.Function, duration int, allRecordsWritten *sync.WaitGroup, writer chan interface{}) {
+func estimateCPUUsage(functions []*common.Function, duration int, slowdown float64, allRecordsWritten *sync.WaitGroup, writer chan interface{}) {
 	var allFunctionsProcessed sync.WaitGroup
 
 	limiter := make(chan struct{}, 12)
@@ -38,7 +38,7 @@ func estimateCPUUsage(functions []*common.Function, duration int, allRecordsWrit
 			defer func() { <-limiter }()
 			defer close(funcWriter)
 
-			timeline := generateFunctionTimelineCompressed(function, duration)
+			timeline := generateFunctionTimelineCompressed(function, duration, slowdown)
 			avgTimeline := averageTimeline(timeline, time.Second)
 			for _, entry := range avgTimeline {
 				funcWriter <- entry
