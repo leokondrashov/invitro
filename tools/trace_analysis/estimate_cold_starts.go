@@ -46,7 +46,7 @@ var (
 	iatDistribution = flag.String("iatDistribution", "exponential", "IAT distribution, one of [exponential(_shift), uniform(_shift), equidistant(_shift)]")
 	randSeed        = flag.Uint64("randSeed", 42, "Seed for the random number generator")
 	keepalive       = flag.Int("keepalive", 6, "Keepalive period in seconds")
-	typeFlag        = flag.String("type", "coldstart", "Type of analysis to perform, one of [coldstart, cpu]")
+	typeFlag        = flag.String("type", "coldstart", "Type of analysis to perform, one of [coldstart, cpu, memory]")
 	slowdown        = flag.Float64("slowdown", 1.0, "Slowdown factor for each invocation for the analysis")
 )
 
@@ -65,6 +65,8 @@ func main() {
 		coldStarts(functions, *duration, *keepalive, written, writer)
 	case "cpu":
 		estimateCPUUsage(functions, *duration, *slowdown, written, writer)
+	case "memory":
+		estimateMemoryUsage(functions, *duration, *slowdown, *keepalive, written, writer)
 	}
 }
 

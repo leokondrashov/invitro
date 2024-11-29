@@ -366,6 +366,43 @@ func TestGenerateTimelineCompressed(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "two simultaneous inv",
+			slowdown: 1,
+			iat: common.IATMatrix{
+				[]float64{0, 0, 60000000 - 10000},
+			},
+			runtimeSpec: common.RuntimeSpecificationMatrix{
+				[]common.RuntimeSpecification{
+					{
+						Runtime: 100,
+						Memory:  1,
+					},
+					{
+						Runtime: 100,
+						Memory:  1,
+					},
+				},
+			},
+			expected: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0,
+					Concurrency: 2,
+				},
+				{
+					Timestamp:   100e-3,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   100e-3,
+					Concurrency: 0,
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -517,72 +554,37 @@ func TestAverageTimeline(t *testing.T) {
 				},
 			},
 		},
-		// {
-		// 	name: "two inv",
-		// 	timeline: []TimelineEntry{
-		// 		{
-		// 			Timestamp:   0,
-		// 			Concurrency: 1,
-		// 		},
-		// 		{
-		// 			Timestamp:   1,
-		// 			Concurrency: 0,
-		// 		},
-		// 		{
-		// 			Timestamp:   10e-3,
-		// 			Concurrency: 1,
-		// 		},
-		// 		{
-		// 			Timestamp:   11e-3,
-		// 			Concurrency: 0,
-		// 		},
-		// 	},
-		// 	expected: []AvgTimelineEntry{
-		// 		{
-		// 			Timestamp:   0.5,
-		// 			Concurrency: 1,
-		// 		},
-		// 		{
-		// 			Timestamp:   10.5e-3,
-		// 			Concurrency: 1,
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name: "two overlapping inv",
-		// 	timeline: []TimelineEntry{
-		// 		{
-		// 			Timestamp:   0,
-		// 			Concurrency: 1,
-		// 		},
-		// 		{
-		// 			Timestamp:   10e-3,
-		// 			Concurrency: 2,
-		// 		},
-		// 		{
-		// 			Timestamp:   100e-3,
-		// 			Concurrency: 1,
-		// 		},
-		// 		{
-		// 			Timestamp:   110e-3,
-		// 			Concurrency: 0,
-		// 		},
-		// 	},
-		// 	expected: []AvgTimelineEntry{
-		// 		{
-		// 			Timestamp:   0.5,
-		// 			Concurrency: 1,
-		// 		},
-		// 		{
-		// 			Timestamp:   10.5e-3,
-		// 			Concurrency: 1.5,
-		// 		},
-		// 		{
-		// 			Timestamp:   100.5e-3,
-		// 			Concurrency: 1,
-		// 		},
-		// 	},
-		// },
+		{
+			name: "two simultaneous inv",
+			timeline: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0,
+					Concurrency: 2,
+				},
+				{
+					Timestamp:   1.5,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1.5,
+					Concurrency: 0,
+				},
+			},
+			expected: []AvgTimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 2,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 1,
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
