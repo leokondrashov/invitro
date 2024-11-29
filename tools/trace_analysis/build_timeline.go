@@ -12,6 +12,11 @@ type TimelineEntry struct {
 	Concurrency int
 }
 
+type AvgTimelineEntry struct {
+	Timestamp   float64 `csv:"timestamp"`
+	Concurrency float64 `csv:"concurrency"`
+}
+
 func generateFunctionTimeline(function *common.Function, duration int, granularity time.Duration) []int {
 	minuteIndex, invocationIndex := 0, 0
 	sum := 0.0
@@ -116,4 +121,40 @@ func generateFunctionTimelineCompressed(function *common.Function, duration int)
 	}
 
 	return timeline
+}
+
+// Timeline should be already sorted by timestamp and compressed
+func averageTimeline(timeline []TimelineEntry, granularity time.Duration) []AvgTimelineEntry {
+	maxTime := timeline[len(timeline)-1].Timestamp
+	// assert.Greater(maxTime, 0, "maxTime should be greater than 0")
+	// assert.Equal(timeline[len(timeline)-1].Concurrency, 0, "last concurrency should be equal 0")
+	avg := 0.0
+	currentTime := 0.0
+	intervalEnd := granularity.Seconds()
+	prevTimestamp := 0.0
+	i := 0
+	concurrency := 0
+
+	avgTimeline := make([]AvgTimelineEntry, 0, int(maxTime/granularity.Seconds())+1)
+
+	for currentTime <= maxTime {
+		for i < len(timeline) && timeline[i].Timestamp <= intervalEnd {
+			avg += float64(concurrency) * (timeline[i].Timestamp - prevTimestamp)
+			concurrency = timeline[i].Concurrency
+			prevTimestamp = timeline[i].Timestamp
+			i++
+		}
+		avg += float64(concurrency) * (intervalEnd - prevTimestamp) // last interval in this granularity
+		prevTimestamp = intervalEnd
+
+		avgTimeline = append(avgTimeline, AvgTimelineEntry{
+			currentTime,
+			avg,
+		})
+		currentTime = intervalEnd
+		intervalEnd += granularity.Seconds()
+		avg = 0.0
+	}
+
+	return avgTimeline
 }

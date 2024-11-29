@@ -46,6 +46,7 @@ var (
 	iatDistribution = flag.String("iatDistribution", "exponential", "IAT distribution, one of [exponential(_shift), uniform(_shift), equidistant(_shift)]")
 	randSeed        = flag.Uint64("randSeed", 42, "Seed for the random number generator")
 	keepalive       = flag.Int("keepalive", 6, "Keepalive period in seconds")
+	typeFlag        = flag.String("type", "coldstart", "Type of analysis to perform, one of [coldstart, cpu]")
 )
 
 type coldStartRecord struct {
@@ -56,41 +57,47 @@ type coldStartRecord struct {
 func main() {
 	flag.Parse()
 
-	coldStarts(*outputFile)
+	writer, written, functions := commonInit(*outputFile, *tracePath, *duration, *iatDistribution, *randSeed)
+
+	switch *typeFlag {
+	case "coldstart":
+		coldStarts(functions, *duration, *keepalive, written, writer)
+	case "cpu":
+		estimateCPUUsage(functions, *duration, written, writer)
+	}
 }
 
-func coldStarts(outputFilename string) {
-	var allFunctionsProcessed sync.WaitGroup
-	var allRecordsWritten sync.WaitGroup
-
-	var iatType common.IatDistribution
-	shift := false
-	switch *iatDistribution {
+func parseIATDistribution(iat string) (common.IatDistribution, bool) {
+	switch iat {
 	case "exponential":
-		iatType = common.Exponential
+		return common.Exponential, false
 	case "exponential_shift":
-		iatType = common.Exponential
-		shift = true
+		return common.Exponential, true
 	case "gamma":
-		iatType = common.Gamma
+		return common.Gamma, false
 	case "gamma_shift":
-		iatType = common.Gamma
-		shift = true
+		return common.Gamma, true
 	case "uniform":
-		iatType = common.Uniform
+		return common.Uniform, false
 	case "uniform_shift":
-		iatType = common.Uniform
-		shift = true
+		return common.Uniform, true
 	case "equidistant":
-		iatType = common.Equidistant
+		return common.Equidistant, false
 	default:
 		log.Fatal("Unsupported IAT distribution.")
 	}
-	granularity := 1 * time.Millisecond
+
+	return common.Exponential, false
+}
+
+func commonInit(outputFilename string, tracePath string, duration int, iatDistribution string, randSeed uint64) (chan interface{}, *sync.WaitGroup, []*common.Function) {
+	var allRecordsWritten sync.WaitGroup
+
+	iatType, shift := parseIATDistribution(iatDistribution)
 
 	writer := make(chan interface{}, 1000)
 
-	traceParser := trace.NewAzureParser(*tracePath, *duration)
+	traceParser := trace.NewAzureParser(tracePath, duration)
 	functions := traceParser.Parse("Knative")
 
 	log.Infof("Traces contain the following %d functions:\n", len(functions))
@@ -106,13 +113,20 @@ func coldStarts(outputFilename string) {
 		f.Close()
 	}()
 
-	specGenerator := spec.NewSpecificationGenerator(*randSeed)
+	specGenerator := spec.NewSpecificationGenerator(randSeed)
 
 	for i, function := range functions {
 		spec := specGenerator.GenerateInvocationData(function, iatType, shift, common.MinuteGranularity)
 		functions[i].Specification = spec
 	}
 
+	return writer, &allRecordsWritten, functions
+}
+
+func coldStarts(functions []*common.Function, duration int, keepalive int, allRecordsWritten *sync.WaitGroup, writer chan interface{}) {
+	var allFunctionsProcessed sync.WaitGroup
+
+	granularity := time.Millisecond
 	limiter := make(chan struct{}, 12)
 
 	for i, function := range functions {
@@ -134,8 +148,8 @@ func coldStarts(outputFilename string) {
 			defer func() { <-limiter }()
 			defer close(funcWriter)
 
-			timeline := generateFunctionTimeline(function, *duration, granularity)
-			getColdStarts(timeline, *keepalive*int(time.Second/granularity), funcWriter)
+			timeline := generateFunctionTimeline(function, duration, granularity)
+			getColdStarts(timeline, keepalive*int(time.Second/granularity), funcWriter)
 		}()
 	}
 	allFunctionsProcessed.Wait()
