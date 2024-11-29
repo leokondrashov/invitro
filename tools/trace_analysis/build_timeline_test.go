@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -286,7 +287,7 @@ func TestGenerateTimelineCompressed(t *testing.T) {
 					Concurrency: 1,
 				},
 				{
-					Timestamp:   1,
+					Timestamp:   1e-3,
 					Concurrency: 0,
 				},
 				{
@@ -347,7 +348,223 @@ func TestGenerateTimelineCompressed(t *testing.T) {
 				t.Errorf("Wrong timeline length: %v, expected %v", timeline, test.expected)
 			}
 			for i, entry := range timeline {
-				if entry.Timestamp-test.expected[i].Timestamp > eps || entry.Concurrency != test.expected[i].Concurrency {
+				if math.Abs(entry.Timestamp-test.expected[i].Timestamp) > eps || entry.Concurrency != test.expected[i].Concurrency {
+					t.Errorf("Wrong entry at %v: %v, expected %v", i, entry, test.expected[i])
+				}
+			}
+		})
+	}
+}
+
+func TestAverageTimeline(t *testing.T) {
+	eps := 1e-9
+
+	tests := []struct {
+		name     string
+		timeline []TimelineEntry
+		expected []AvgTimelineEntry
+	}{
+		{
+			name: "long single inv",
+			timeline: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 0,
+				},
+			},
+			expected: []AvgTimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 0,
+				},
+			},
+		},
+		{
+			name: "short single inv",
+			timeline: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1e-3,
+					Concurrency: 0,
+				},
+			},
+			expected: []AvgTimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1e-3,
+				},
+			},
+		},
+		{
+			name: "spill",
+			timeline: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1.5,
+					Concurrency: 0,
+				},
+			},
+			expected: []AvgTimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 0.5,
+				},
+			},
+		},
+		{
+			name: "two overlapping inv",
+			timeline: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0.5,
+					Concurrency: 2,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1.5,
+					Concurrency: 0,
+				},
+			},
+			expected: []AvgTimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1.5,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 0.5,
+				},
+			},
+		},
+		{
+			name: "two non-overlapping inv",
+			timeline: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0.1,
+					Concurrency: 0,
+				},
+				{
+					Timestamp:   0.5,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0.6,
+					Concurrency: 0,
+				},
+			},
+			expected: []AvgTimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 0.2,
+				},
+			},
+		},
+		// {
+		// 	name: "two inv",
+		// 	timeline: []TimelineEntry{
+		// 		{
+		// 			Timestamp:   0,
+		// 			Concurrency: 1,
+		// 		},
+		// 		{
+		// 			Timestamp:   1,
+		// 			Concurrency: 0,
+		// 		},
+		// 		{
+		// 			Timestamp:   10e-3,
+		// 			Concurrency: 1,
+		// 		},
+		// 		{
+		// 			Timestamp:   11e-3,
+		// 			Concurrency: 0,
+		// 		},
+		// 	},
+		// 	expected: []AvgTimelineEntry{
+		// 		{
+		// 			Timestamp:   0.5,
+		// 			Concurrency: 1,
+		// 		},
+		// 		{
+		// 			Timestamp:   10.5e-3,
+		// 			Concurrency: 1,
+		// 		},
+		// 	},
+		// },
+		// {
+		// 	name: "two overlapping inv",
+		// 	timeline: []TimelineEntry{
+		// 		{
+		// 			Timestamp:   0,
+		// 			Concurrency: 1,
+		// 		},
+		// 		{
+		// 			Timestamp:   10e-3,
+		// 			Concurrency: 2,
+		// 		},
+		// 		{
+		// 			Timestamp:   100e-3,
+		// 			Concurrency: 1,
+		// 		},
+		// 		{
+		// 			Timestamp:   110e-3,
+		// 			Concurrency: 0,
+		// 		},
+		// 	},
+		// 	expected: []AvgTimelineEntry{
+		// 		{
+		// 			Timestamp:   0.5,
+		// 			Concurrency: 1,
+		// 		},
+		// 		{
+		// 			Timestamp:   10.5e-3,
+		// 			Concurrency: 1.5,
+		// 		},
+		// 		{
+		// 			Timestamp:   100.5e-3,
+		// 			Concurrency: 1,
+		// 		},
+		// 	},
+		// },
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := averageTimeline(test.timeline, time.Second)
+
+			if len(result) != len(test.expected) {
+				t.Errorf("Wrong result length: %v, expected %v", result, test.expected)
+			}
+
+			for i, entry := range result {
+				if math.Abs(entry.Timestamp-test.expected[i].Timestamp) > eps || math.Abs(entry.Concurrency-test.expected[i].Concurrency) > eps {
 					t.Errorf("Wrong entry at %v: %v, expected %v", i, entry, test.expected[i])
 				}
 			}

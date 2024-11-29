@@ -1,4 +1,4 @@
-module github.com/vhive-serverless/sampler/tools/generateTimeline
+module github.com/vhive-serverless/sampler/tools/trace_analysis
 
 go 1.22.7
 
