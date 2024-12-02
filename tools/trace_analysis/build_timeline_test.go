@@ -585,6 +585,41 @@ func TestAverageTimeline(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "empty granularity",
+			timeline: []TimelineEntry{
+				{
+					Timestamp:   0.1,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0.9,
+					Concurrency: 0,
+				},
+				{
+					Timestamp:   2.1,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   2.9,
+					Concurrency: 0,
+				},
+			},
+			expected: []AvgTimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 0.8,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 0,
+				},
+				{
+					Timestamp:   2,
+					Concurrency: 0.8,
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
