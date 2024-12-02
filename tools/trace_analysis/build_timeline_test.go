@@ -432,6 +432,11 @@ func TestAverageTimeline(t *testing.T) {
 		expected []AvgTimelineEntry
 	}{
 		{
+			name:     "empty timeline",
+			timeline: []TimelineEntry{},
+			expected: []AvgTimelineEntry{},
+		},
+		{
 			name: "long single inv",
 			timeline: []TimelineEntry{
 				{
