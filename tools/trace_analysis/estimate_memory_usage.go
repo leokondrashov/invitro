@@ -17,27 +17,15 @@ func estimateMemoryUsage(functions []*common.Function, duration int, slowdown fl
 		allFunctionsProcessed.Add(1)
 		limiter <- struct{}{}
 
-		funcWriter := make(chan AvgTimelineEntry)
-		go func() {
-			for t, ok := <-funcWriter; ok; t, ok = <-funcWriter {
-				writer <- cpuRecord{
-					t.Timestamp,
-					i,
-					t.Concurrency,
-				}
-			}
-		}()
-
 		go func() {
 			defer allFunctionsProcessed.Done()
 			defer func() { <-limiter }()
-			defer close(funcWriter)
 
 			timeline := generateFunctionTimelineCompressed(function, duration, slowdown)
 			instanceTimeline := generateInstanceTimeline(timeline, keepalive)
 			avgTimeline := averageTimeline(instanceTimeline, time.Second)
 			for _, entry := range avgTimeline {
-				funcWriter <- entry
+				writer <- cpuRecord{entry.Timestamp, i, entry.Concurrency}
 			}
 		}()
 	}
