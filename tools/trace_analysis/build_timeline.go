@@ -134,9 +134,9 @@ func averageTimeline(timeline []TimelineEntry, granularity time.Duration) []AvgT
 	// assert.Greater(maxTime, 0, "maxTime should be greater than 0")
 	// assert.Equal(timeline[len(timeline)-1].Concurrency, 0, "last concurrency should be equal 0")
 	avg := 0.0
-	currentTime := math.Floor(minTime)
+	currentTime := math.Floor(minTime/granularity.Seconds()) * granularity.Seconds()
 	intervalEnd := currentTime + granularity.Seconds()
-	prevTimestamp := math.Floor(minTime)
+	prevTimestamp := currentTime
 	i := 0
 	concurrency := 0
 
@@ -154,7 +154,7 @@ func averageTimeline(timeline []TimelineEntry, granularity time.Duration) []AvgT
 
 		avgTimeline = append(avgTimeline, AvgTimelineEntry{
 			currentTime,
-			avg,
+			avg / granularity.Seconds(),
 		})
 		currentTime = intervalEnd
 		intervalEnd += granularity.Seconds()
