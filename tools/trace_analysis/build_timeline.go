@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"slices"
 	"time"
 
@@ -128,13 +129,14 @@ func averageTimeline(timeline []TimelineEntry, granularity time.Duration) []AvgT
 	if len(timeline) == 0 {
 		return []AvgTimelineEntry{}
 	}
+	minTime := timeline[0].Timestamp
 	maxTime := timeline[len(timeline)-1].Timestamp
 	// assert.Greater(maxTime, 0, "maxTime should be greater than 0")
 	// assert.Equal(timeline[len(timeline)-1].Concurrency, 0, "last concurrency should be equal 0")
 	avg := 0.0
-	currentTime := 0.0
-	intervalEnd := granularity.Seconds()
-	prevTimestamp := 0.0
+	currentTime := math.Floor(minTime)
+	intervalEnd := currentTime + granularity.Seconds()
+	prevTimestamp := math.Floor(minTime)
 	i := 0
 	concurrency := 0
 
