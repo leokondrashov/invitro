@@ -23,7 +23,7 @@ func estimateMemoryUsage(functions []*common.Function, duration int, slowdown fl
 
 			timeline := generateFunctionTimelineCompressed(function, duration, slowdown)
 			instanceTimeline := generateInstanceTimeline(timeline, keepalive)
-			avgTimeline := averageTimeline(instanceTimeline, time.Second)
+			avgTimeline := averageTimeline(instanceTimeline, time.Duration(keepalive/6)*time.Second)
 			for _, entry := range avgTimeline {
 				writer <- cpuRecord{entry.Timestamp, i, entry.Concurrency}
 			}
