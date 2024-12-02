@@ -662,3 +662,160 @@ func TestAverageTimeline(t *testing.T) {
 		})
 	}
 }
+
+func TestAverageTimelineGranularity(t *testing.T) {
+	eps := 1e-9
+
+	tests := []struct {
+		name        string
+		timeline    []TimelineEntry
+		expected    []AvgTimelineEntry
+		granularity time.Duration
+	}{
+		{
+			name:        "empty timeline",
+			timeline:    []TimelineEntry{},
+			expected:    []AvgTimelineEntry{},
+			granularity: time.Second,
+		},
+		{
+			name: "single inv",
+			timeline: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 0,
+				},
+			},
+			expected: []AvgTimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 0,
+				},
+			},
+			granularity: time.Second,
+		},
+		{
+			name: "single inv, 0.1s granularity",
+			timeline: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 0,
+				},
+			},
+			expected: []AvgTimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0.1,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0.2,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0.3,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0.4,
+					Concurrency: 1,
+				}, {
+					Timestamp:   0.5,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0.6,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0.7,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0.8,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   0.9,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 0,
+				},
+			},
+			granularity: time.Second / 10,
+		},
+		{
+			name: "single inv, 10s",
+			timeline: []TimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   1,
+					Concurrency: 0,
+				},
+			},
+			expected: []AvgTimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 0.1,
+				},
+			},
+			granularity: 10 * time.Second,
+		},
+		{
+			name: "single inv, 10s, off granularity",
+			timeline: []TimelineEntry{
+				{
+					Timestamp:   2,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   3,
+					Concurrency: 0,
+				},
+			},
+			expected: []AvgTimelineEntry{
+				{
+					Timestamp:   0,
+					Concurrency: 0.1,
+				},
+			},
+			granularity: 10 * time.Second,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := averageTimeline(test.timeline, test.granularity)
+
+			if len(result) != len(test.expected) {
+				t.Errorf("Wrong result length: %v, expected %v", result, test.expected)
+			}
+
+			for i, entry := range result {
+				if math.Abs(entry.Timestamp-test.expected[i].Timestamp) > eps || math.Abs(entry.Concurrency-test.expected[i].Concurrency) > eps {
+					t.Errorf("Wrong entry at %v: %v, expected %v", i, entry, test.expected[i])
+				}
+			}
+		})
+	}
+}
