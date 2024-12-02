@@ -125,6 +125,9 @@ func generateFunctionTimelineCompressed(function *common.Function, duration int,
 
 // Timeline should be already sorted by timestamp and compressed
 func averageTimeline(timeline []TimelineEntry, granularity time.Duration) []AvgTimelineEntry {
+	if len(timeline) == 0 {
+		return []AvgTimelineEntry{}
+	}
 	maxTime := timeline[len(timeline)-1].Timestamp
 	// assert.Greater(maxTime, 0, "maxTime should be greater than 0")
 	// assert.Equal(timeline[len(timeline)-1].Concurrency, 0, "last concurrency should be equal 0")
