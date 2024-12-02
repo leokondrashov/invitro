@@ -479,6 +479,25 @@ func TestAverageTimeline(t *testing.T) {
 			},
 		},
 		{
+			name: "late short single inv",
+			timeline: []TimelineEntry{
+				{
+					Timestamp:   10,
+					Concurrency: 1,
+				},
+				{
+					Timestamp:   10 + 1e-3,
+					Concurrency: 0,
+				},
+			},
+			expected: []AvgTimelineEntry{
+				{
+					Timestamp:   10,
+					Concurrency: 1e-3,
+				},
+			},
+		},
+		{
 			name: "spill",
 			timeline: []TimelineEntry{
 				{
