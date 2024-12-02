@@ -13,10 +13,10 @@ type cpuRecord struct {
 	CPU       float64 `csv:"cpu"`
 }
 
-func estimateCPUUsage(functions []*common.Function, duration int, slowdown float64, allRecordsWritten *sync.WaitGroup, writer chan interface{}) {
+func estimateCPUUsage(functions []*common.Function, duration int, slowdown float64, allRecordsWritten *sync.WaitGroup, writer chan interface{}, threads int) {
 	var allFunctionsProcessed sync.WaitGroup
 
-	limiter := make(chan struct{}, 12)
+	limiter := make(chan struct{}, threads)
 
 	for i, function := range functions {
 		allFunctionsProcessed.Add(1)

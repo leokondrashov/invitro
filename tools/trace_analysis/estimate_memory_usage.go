@@ -8,10 +8,10 @@ import (
 	"github.com/vhive-serverless/loader/pkg/common"
 )
 
-func estimateMemoryUsage(functions []*common.Function, duration int, slowdown float64, keepalive int, allRecordsWritten *sync.WaitGroup, writer chan interface{}) {
+func estimateMemoryUsage(functions []*common.Function, duration int, slowdown float64, keepalive int, allRecordsWritten *sync.WaitGroup, writer chan interface{}, threads int) {
 	var allFunctionsProcessed sync.WaitGroup
 
-	limiter := make(chan struct{}, 12)
+	limiter := make(chan struct{}, threads)
 
 	for i, function := range functions {
 		allFunctionsProcessed.Add(1)

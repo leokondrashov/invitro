@@ -48,6 +48,7 @@ var (
 	keepalive       = flag.Int("keepalive", 6, "Keepalive period in seconds")
 	typeFlag        = flag.String("type", "coldstart", "Type of analysis to perform, one of [coldstart, cpu, memory]")
 	slowdown        = flag.Float64("slowdown", 1.0, "Slowdown factor for each invocation for the analysis")
+	threads         = flag.Int("j", 12, "Number of threads to use for processing")
 )
 
 type coldStartRecord struct {
@@ -62,11 +63,11 @@ func main() {
 
 	switch *typeFlag {
 	case "coldstart":
-		coldStarts(functions, *duration, *keepalive, written, writer)
+		coldStarts(functions, *duration, *keepalive, written, writer, *threads)
 	case "cpu":
-		estimateCPUUsage(functions, *duration, *slowdown, written, writer)
+		estimateCPUUsage(functions, *duration, *slowdown, written, writer, *threads)
 	case "memory":
-		estimateMemoryUsage(functions, *duration, *slowdown, *keepalive, written, writer)
+		estimateMemoryUsage(functions, *duration, *slowdown, *keepalive, written, writer, *threads)
 	}
 }
 
@@ -126,11 +127,11 @@ func commonInit(outputFilename string, tracePath string, duration int, iatDistri
 	return writer, &allRecordsWritten, functions
 }
 
-func coldStarts(functions []*common.Function, duration int, keepalive int, allRecordsWritten *sync.WaitGroup, writer chan interface{}) {
+func coldStarts(functions []*common.Function, duration int, keepalive int, allRecordsWritten *sync.WaitGroup, writer chan interface{}, threads int) {
 	var allFunctionsProcessed sync.WaitGroup
 
 	granularity := time.Millisecond
-	limiter := make(chan struct{}, 12)
+	limiter := make(chan struct{}, threads)
 
 	for i, function := range functions {
 		allFunctionsProcessed.Add(1)
