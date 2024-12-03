@@ -59,22 +59,43 @@ func maxOverRange(timeline []TimelineEntry, start, end float64) int {
 	return max
 }
 
+// compute max over a range [start, end)
+func isGreaterOverRange(timeline []TimelineEntry, start, end float64, value int) bool {
+	cmp := func(e TimelineEntry, t float64) int {
+		if e.Timestamp < t {
+			return -1
+		} else if e.Timestamp > t {
+			return 1
+		} else {
+			return 0
+		}
+	}
+	low, _ := slices.BinarySearchFunc(timeline, start, cmp)
+	if low > 0 {
+		low--
+	}
+	high, _ := slices.BinarySearchFunc(timeline, end, cmp)
+	for i := low; i < high; i++ {
+		if timeline[i].Concurrency > value {
+			return true
+		}
+	}
+	return false
+}
+
 func generateInstanceTimeline(timeline []TimelineEntry, keepalive int) []TimelineEntry {
 	instanceTimeline := make([]TimelineEntry, 0)
 	eps := 1e-9
 
-	capacity := 0
 	for i, entry := range timeline {
 		if i != 0 && entry.Concurrency <= timeline[i-1].Concurrency {
-			// looking into the future, whether we would need the same or greater capacity over keepalive
+			// looking into the future, whether we would need the greater capacity over keepalive
 			// if not, we can add scale down event in future
-			futureCapacity := maxOverRange(timeline, entry.Timestamp+eps, entry.Timestamp+float64(keepalive))
-			if futureCapacity <= entry.Concurrency {
+			if !isGreaterOverRange(timeline, entry.Timestamp+eps, entry.Timestamp+float64(keepalive), entry.Concurrency) {
 				instanceTimeline = append(instanceTimeline, TimelineEntry{entry.Timestamp + float64(keepalive), entry.Concurrency})
 			}
 		} else {
-			capacity = maxOverRange(timeline, entry.Timestamp-float64(keepalive), entry.Timestamp)
-			if capacity < entry.Concurrency {
+			if !isGreaterOverRange(timeline, entry.Timestamp-float64(keepalive), entry.Timestamp, entry.Concurrency-1) {
 				instanceTimeline = append(instanceTimeline, entry)
 			}
 		}
