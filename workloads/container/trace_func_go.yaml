@@ -20,6 +20,7 @@ spec:
         autoscaling.knative.dev/target: $AUTOSCALING_TARGET
     spec:
       containerConcurrency: 1
+      automountServiceAccountToken: false
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
