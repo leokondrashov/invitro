@@ -146,6 +146,15 @@ function setup_workers() {
         # Rejoin has to be performed although errors will be thrown. Otherwise, restarting the kubelet will cause the node unreachable for some reason
         server_exec $node "sudo ${LOGIN_TOKEN} > /dev/null 2>&1"
         echo "Worker node $node joined the cluster (again :P)."
+
+        # Deploy node agent
+        scp ~/.github_token $node:~/.github_token
+        server_exec $node "git clone --branch=$KHALA_BRANCH https://leokondrashov:`cat ~/.github_token`@${KHALA_REPO#https://} khala"
+        server_exec $node "sudo apt-get install acl && sudo setfacl -m u:${USER}:rw /dev/kvm && sudo usermod -aG kvm ${USER} && sudo setfacl -m u:${USER}:rw /dev/userfaultfd"
+        server_exec $node "pushd ~/khala > /dev/null && bash ./scripts/get_asset.sh && popd > /dev/null"
+        server_exec $node "pushd ~/khala > /dev/null && source /etc/profile && go build ./cmd/vm-relay"
+        server_exec $node "tmux new -s relay -d"
+        server_exec $node "tmux send -t relay 'pushd ~/khala > /dev/null && sudo ./vm-relay 2>&1 | tee ~/relay_log.txt' ENTER"
     }
 
     for node in "$@"
