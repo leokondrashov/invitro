@@ -27,9 +27,7 @@ package main
 import (
 	"flag"
 	"os"
-	"slices"
 	"sync"
-	"time"
 
 	"github.com/gocarina/gocsv"
 	log "github.com/sirupsen/logrus"
@@ -52,8 +50,8 @@ var (
 )
 
 type coldStartRecord struct {
-	Timestamp   int `csv:"timestamp"`
-	FunctionNum int `csv:"functionNum"`
+	Timestamp   float64 `csv:"timestamp"`
+	FunctionNum int     `csv:"functionNum"`
 }
 
 func main() {
@@ -130,15 +128,15 @@ func commonInit(outputFilename string, tracePath string, duration int, iatDistri
 func coldStarts(functions []*common.Function, duration int, keepalive int, allRecordsWritten *sync.WaitGroup, writer chan interface{}, threads int) {
 	var allFunctionsProcessed sync.WaitGroup
 
-	granularity := time.Millisecond
 	limiter := make(chan struct{}, threads)
 
 	for i, function := range functions {
 		allFunctionsProcessed.Add(1)
 		limiter <- struct{}{}
 
-		funcWriter := make(chan int)
+		funcWriter := make(chan float64)
 		go func() {
+			defer allFunctionsProcessed.Done()
 			for t, ok := <-funcWriter; ok; t, ok = <-funcWriter {
 				writer <- coldStartRecord{
 					t,
@@ -148,12 +146,12 @@ func coldStarts(functions []*common.Function, duration int, keepalive int, allRe
 		}()
 
 		go func() {
-			defer allFunctionsProcessed.Done()
 			defer func() { <-limiter }()
 			defer close(funcWriter)
 
-			timeline := generateFunctionTimeline(function, duration, granularity)
-			getColdStarts(timeline, keepalive*int(time.Second/granularity), funcWriter)
+			timeline := generateFunctionTimelineCompressed(function, duration, *slowdown)
+			instances := generateInstanceTimeline(timeline, keepalive)
+			getColdStarts(instances, funcWriter)
 		}()
 	}
 	allFunctionsProcessed.Wait()
@@ -161,18 +159,14 @@ func coldStarts(functions []*common.Function, duration int, keepalive int, allRe
 	allRecordsWritten.Wait()
 }
 
-func getColdStarts(concurrency []int, keepalive int, writer chan int) {
-	capacity := 0
-	for i, c := range concurrency {
+func getColdStarts(timeline []TimelineEntry, writer chan float64) {
+	for i, entry := range timeline {
 		if i == 0 {
-			capacity = 0
-		} else if c <= concurrency[i-1] {
-			continue
-		} else {
-			capacity = slices.Max(concurrency[max(0, i-keepalive):i])
-		}
-		for ; capacity < c; capacity++ {
-			writer <- i
+			if entry.Concurrency > 0 {
+				writer <- entry.Timestamp
+			}
+		} else if entry.Concurrency > timeline[i-1].Concurrency {
+			writer <- entry.Timestamp
 		}
 	}
 }
