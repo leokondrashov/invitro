@@ -152,15 +152,16 @@ prometheus:
 
   prometheusSpec:
     scrapeInterval: "15s"
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: loader-nodetype
-            operator: In
-            values:
-            - monitoring
-            - singlenode
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: loader-nodetype
+              operator: In
+              values:
+              - monitoring
+              - singlenode
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     walCompression: false
