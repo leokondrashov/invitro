@@ -289,7 +289,7 @@ function distribute_loader_ssh_key() {
     server_exec $MASTER_NODE "kubectl patch configmap -n knative-serving config-features -p '{\"data\": {\"kubernetes.podspec-affinity\": \"enabled\"}}'"
 
 
-    server_exec $MASTER_NODE "kubectl patch configmap config-logging -n knative-serving -p '{\"data\": {\"loglevel.autoscaler\": \"debug\"}}'"
+    server_exec $MASTER_NODE "kubectl patch configmap config-logging -n knative-serving -p '{\"data\": {\"loglevel.activator\": \"debug\"}}'"
     
     # update limits
     server_exec $MASTER_NODE "kubectl patch deployment istio-ingressgateway -n istio-system --patch \
