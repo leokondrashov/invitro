@@ -121,7 +121,7 @@ func generateLoad(outputFilename string, millisecondScale bool) {
 	}
 	writer := make(chan any, 1000)
 
-	traceParser := trace.NewAzureParser(*tracePath, *duration, "")
+	traceParser := trace.NewAzureParser(*tracePath, *duration, "", 0)
 	functions := traceParser.Parse()
 
 	log.Infof("Traces contain the following %d functions:\n", len(functions))

@@ -63,6 +63,7 @@ type LoaderConfiguration struct {
 	CPULimit           string `json:"CPULimit"`
 	ExperimentDuration int    `json:"ExperimentDuration"`
 	WarmupDuration     int    `json:"WarmupDuration"`
+	SkipDuration       int    `json:"SkipDuration"`
 
 	IsPartiallyPanic            bool   `json:"IsPartiallyPanic"`
 	EnableZipkinTracing         bool   `json:"EnableZipkinTracing"`

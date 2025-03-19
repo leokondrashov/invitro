@@ -6,7 +6,7 @@ import (
 )
 
 func TestMapperParserWrapper(t *testing.T) {
-	parser := NewMapperParser("test_data", 10)
+	parser := NewMapperParser("test_data", 10, 1)
 	functions := parser.Parse()
 
 	if len(functions) != 1 {
@@ -14,6 +14,7 @@ func TestMapperParserWrapper(t *testing.T) {
 	}
 	if !strings.HasPrefix(functions[0].Name, "cartservice") ||
 		functions[0].InvocationStats == nil ||
+		functions[0].InvocationStats.Invocations[0] != 2 ||
 		functions[0].YAMLPath != "workloads/container/yamls/online-shop/kn-cartservice.yaml" ||
 		len(functions[0].PredeploymentPath) != 1 ||
 		functions[0].PredeploymentPath[0] != "workloads/container/yamls/online-shop/database.yaml" {
