@@ -180,7 +180,7 @@ func runTraceMode(cfg *config.LoaderConfiguration, readIATFromFile bool, justGen
 	durationToParse := determineDurationToParse(cfg.ExperimentDuration, cfg.WarmupDuration)
 	yamlPath := parseYAMLSpecification(cfg)
 
-	traceParser := trace.NewAzureParser(cfg.TracePath, durationToParse)
+	traceParser := trace.NewAzureParser(cfg.TracePath, durationToParse, cfg.SkipDuration)
 	functions := traceParser.Parse(cfg.Platform)
 
 	log.Infof("Traces contain the following %d functions:\n", len(functions))
