@@ -49,14 +49,16 @@ type AzureTraceParser struct {
 	yamlPath              string
 	duration              int
 	functionNameGenerator *rand.Rand
+	invocationColumnShift int
 }
 
-func NewAzureParser(directoryPath string, totalDuration int, yamlPath string) *AzureTraceParser {
+func NewAzureParser(directoryPath string, totalDuration int, yamlPath string, skipDuration int) *AzureTraceParser {
 	return &AzureTraceParser{
 		DirectoryPath:         directoryPath,
 		yamlPath:              yamlPath,
 		duration:              totalDuration,
 		functionNameGenerator: rand.New(rand.NewSource(time.Now().UnixNano())),
+		invocationColumnShift: skipDuration,
 	}
 }
 
@@ -122,14 +124,14 @@ func (p *AzureTraceParser) Parse() []*common.Function {
 	runtimePath := p.DirectoryPath + "/durations.csv"
 	memoryPath := p.DirectoryPath + "/memory.csv"
 
-	invocationTrace := parseInvocationTrace(invocationPath, p.duration)
+	invocationTrace := parseInvocationTrace(invocationPath, p.duration, p.invocationColumnShift)
 	runtimeTrace := parseRuntimeTrace(runtimePath)
 	memoryTrace := parseMemoryTrace(memoryPath)
 
 	return p.extractFunctions(invocationTrace, runtimeTrace, memoryTrace)
 }
 
-func parseInvocationTrace(traceFile string, traceDuration int) *[]common.FunctionInvocationStats {
+func parseInvocationTrace(traceFile string, traceDuration int, invocationColumnShift int) *[]common.FunctionInvocationStats {
 	log.Infof("Parsing function invocation trace %s (duration: %d min)", traceFile, traceDuration)
 
 	// Fit duration on (0, 1440] interval
@@ -173,6 +175,12 @@ func parseInvocationTrace(traceFile string, traceDuration int) *[]common.Functio
 				case "trigger": //! Unused field.
 					invocationColumnIndex = i + 1
 				}
+			}
+
+			if invocationColumnShift < 0 {
+				log.Fatal("Invocation ColumnShift should be non-negative.")
+			} else {
+				invocationColumnIndex += invocationColumnShift
 			}
 
 			if hashOwnerIndex == -1 || hashAppIndex == -1 || hashFunctionIndex == -1 {

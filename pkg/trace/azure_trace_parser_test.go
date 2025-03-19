@@ -37,7 +37,7 @@ func floatEqual(n, expected float64) bool {
 
 func TestParseInvocationTrace(t *testing.T) {
 	duration := 10
-	invocationTrace := *parseInvocationTrace("test_data/invocations.csv", duration)
+	invocationTrace := *parseInvocationTrace("test_data/invocations.csv", duration, 0)
 
 	if len(invocationTrace) != 1 {
 		t.Error("Invalid invocations trace provided.")
@@ -120,7 +120,7 @@ func TestParseMemoryTrace(t *testing.T) {
 }
 
 func TestParserWrapper(t *testing.T) {
-	parser := NewAzureParser("test_data", 10, "workloads/container/trace_func_go.yaml")
+	parser := NewAzureParser("test_data", 10, "workloads/container/trace_func_go.yaml", 0)
 	functions := parser.Parse()
 
 	if len(functions) != 1 {
