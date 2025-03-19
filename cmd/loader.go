@@ -178,9 +178,9 @@ func runTraceMode(cfg *config.LoaderConfiguration, readIATFromFile bool, writeIA
 
 	// Azure trace parsing
 	if !cfg.VSwarm {
-		traceParser = trace.NewAzureParser(cfg.TracePath, durationToParse, yamlPath)
+		traceParser = trace.NewAzureParser(cfg.TracePath, durationToParse, yamlPath, cfg.SkipDuration)
 	} else {
-		traceParser = trace.NewMapperParser(cfg.TracePath, durationToParse)
+		traceParser = trace.NewMapperParser(cfg.TracePath, durationToParse, cfg.SkipDuration)
 	}
 
 	functions = traceParser.Parse()

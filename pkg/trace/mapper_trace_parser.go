@@ -15,6 +15,7 @@ type MapperTraceParser struct {
 	DirectoryPath         string
 	duration              int
 	functionNameGenerator *rand.Rand
+	invocationColumnShift int
 }
 
 type DeploymentInfo struct {
@@ -30,19 +31,20 @@ type functionToDeploymentInfo map[string]DeploymentInfo
 
 type functionToProxy map[string]MapperOutput
 
-func NewMapperParser(directoryPath string, totalDuration int) *MapperTraceParser {
+func NewMapperParser(directoryPath string, totalDuration int, skipDuration int) *MapperTraceParser {
 	return &MapperTraceParser{
 		DirectoryPath: directoryPath,
 
 		duration:              totalDuration,
 		functionNameGenerator: rand.New(rand.NewSource(time.Now().UnixNano())),
+		invocationColumnShift: skipDuration,
 	}
 }
 
 func (p *MapperTraceParser) extractFunctions(mapperOutput functionToProxy, deploymentInfo functionToDeploymentInfo, dirPath string) []*common.Function {
 	var result []*common.Function
 
-	invocations := parseInvocationTrace(dirPath+"/invocations.csv", p.duration)
+	invocations := parseInvocationTrace(dirPath+"/invocations.csv", p.duration, p.invocationColumnShift)
 	runtime := parseRuntimeTrace(dirPath + "/durations.csv")
 	memory := parseMemoryTrace(dirPath + "/memory.csv")
 

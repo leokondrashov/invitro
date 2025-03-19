@@ -15,6 +15,7 @@
   "CPULimit": "1vCPU",
   "ExperimentDuration": 10,
   "WarmupDuration": 0,
+  "InvocationColumnShift": 0,
 
   "IsPartiallyPanic": false,
   "EnableZipkinTracing": false,
