@@ -28,14 +28,15 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"github.com/gocarina/gocsv"
-	"github.com/vhive-serverless/loader/pkg/common"
 	"io"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gocarina/gocsv"
+	"github.com/vhive-serverless/loader/pkg/common"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -45,14 +46,16 @@ type AzureTraceParser struct {
 
 	duration              int
 	functionNameGenerator *rand.Rand
+	invocationColumnShift int
 }
 
-func NewAzureParser(directoryPath string, totalDuration int) *AzureTraceParser {
+func NewAzureParser(directoryPath string, totalDuration int, skipDuration int) *AzureTraceParser {
 	return &AzureTraceParser{
 		DirectoryPath: directoryPath,
 
 		duration:              totalDuration,
 		functionNameGenerator: rand.New(rand.NewSource(time.Now().UnixNano())),
+		invocationColumnShift: skipDuration,
 	}
 }
 
@@ -129,7 +132,7 @@ func (p *AzureTraceParser) Parse(platform string) []*common.Function {
 	memoryPath := p.DirectoryPath + "/memory.csv"
 	dirigentPath := p.DirectoryPath + "/dirigent.json"
 
-	invocationTrace := parseInvocationTrace(invocationPath, p.duration)
+	invocationTrace := parseInvocationTrace(invocationPath, p.duration, p.invocationColumnShift)
 	runtimeTrace := parseRuntimeTrace(runtimePath)
 	memoryTrace := parseMemoryTrace(memoryPath)
 	dirigentMetadata := parseDirigentMetadata(dirigentPath, platform)
@@ -137,7 +140,7 @@ func (p *AzureTraceParser) Parse(platform string) []*common.Function {
 	return p.extractFunctions(invocationTrace, runtimeTrace, memoryTrace, dirigentMetadata)
 }
 
-func parseInvocationTrace(traceFile string, traceDuration int) *[]common.FunctionInvocationStats {
+func parseInvocationTrace(traceFile string, traceDuration int, invocationColumnShift int) *[]common.FunctionInvocationStats {
 	log.Infof("Parsing function invocation trace %s (duration: %d min)", traceFile, traceDuration)
 
 	// Fit duration on (0, 1440] interval
@@ -181,6 +184,12 @@ func parseInvocationTrace(traceFile string, traceDuration int) *[]common.Functio
 				case "trigger": //! Unused field.
 					invocationColumnIndex = i + 1
 				}
+			}
+
+			if invocationColumnShift < 0 {
+				log.Fatal("Invocation ColumnShift should be non-negative.")
+			} else {
+				invocationColumnIndex += invocationColumnShift
 			}
 
 			if hashOwnerIndex == -1 || hashAppIndex == -1 || hashFunctionIndex == -1 {

@@ -41,6 +41,7 @@ var (
 	tracePath       = flag.String("tracePath", "data/traces/", "Path to folder where the trace is located")
 	outputFile      = flag.String("outputFile", "output.csv", "Path to output file")
 	duration        = flag.Int("duration", 1440, "Duration of the traces in minutes")
+	skip_duration   = flag.Int("skip_duration", 00, "Duration of the trace to skip")
 	iatDistribution = flag.String("iatDistribution", "exponential", "IAT distribution, one of [exponential(_shift), uniform(_shift), equidistant(_shift)]")
 	randSeed        = flag.Uint64("randSeed", 42, "Seed for the random number generator")
 	keepalive       = flag.Int("keepalive", 6, "Keepalive period in seconds")
@@ -57,7 +58,7 @@ type coldStartRecord struct {
 func main() {
 	flag.Parse()
 
-	writer, written, functions := commonInit(*outputFile, *tracePath, *duration, *iatDistribution, *randSeed)
+	writer, written, functions := commonInit(*outputFile, *tracePath, *duration, *skip_duration, *iatDistribution, *randSeed)
 
 	switch *typeFlag {
 	case "coldstart":
@@ -92,14 +93,14 @@ func parseIATDistribution(iat string) (common.IatDistribution, bool) {
 	return common.Exponential, false
 }
 
-func commonInit(outputFilename string, tracePath string, duration int, iatDistribution string, randSeed uint64) (chan interface{}, *sync.WaitGroup, []*common.Function) {
+func commonInit(outputFilename string, tracePath string, duration, skip_duration int, iatDistribution string, randSeed uint64) (chan interface{}, *sync.WaitGroup, []*common.Function) {
 	var allRecordsWritten sync.WaitGroup
 
 	iatType, shift := parseIATDistribution(iatDistribution)
 
 	writer := make(chan interface{}, 1000)
 
-	traceParser := trace.NewAzureParser(tracePath, duration)
+	traceParser := trace.NewAzureParser(tracePath, duration, skip_duration)
 	functions := traceParser.Parse("Knative")
 
 	log.Infof("Traces contain the following %d functions:\n", len(functions))
