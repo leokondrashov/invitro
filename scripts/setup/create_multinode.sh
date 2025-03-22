@@ -288,8 +288,24 @@ function distribute_loader_ssh_key() {
 
     server_exec $MASTER_NODE "kubectl patch configmap -n knative-serving config-features -p '{\"data\": {\"kubernetes.podspec-affinity\": \"enabled\"}}'"
 
+    server_exec $MASTER_NODE "kubectl patch configmap config-logging -n knative-serving -p '{\"data\": {\"loglevel.activator\": \"debug\"}}'"
+    server_exec $MASTER_NODE "kubectl patch clusterrole knative-serving-activator-cluster --type='json' -p \
+        '[{\"op\": \"add\", \"path\": \"/rules/-\", \"value\": {\"apiGroups\": [\"\"], \"resources\": [\"nodes\"], \"verbs\": [\"get\", \"list\", \"watch\"]}}]'"
 
-    server_exec $MASTER_NODE "kubectl patch configmap config-logging -n knative-serving -p '{\"data\": {\"loglevel.autoscaler\": \"debug\"}}'"
+    server_exec $MASTER_NODE "kubectl patch configmap config-deployment -n knative-serving -p '{\"data\": {\"queue-sidecar-image\": \"lkondras/queue-39be6f1d08a095bd076a71d288d295b6:fast-drain\"}}'"
+
+    server_exec $MASTER_NODE "sudo sed -i '30a\\
+    - --kube-api-qps=1000\n\
+    - --kube-api-burst=2000\n\
+    - --concurrent-deployment-syncs=1000\n\
+    - --concurrent-replicaset-syncs=1000\n\
+    - --concurrent-service-endpoint-syncs=50\n\
+    - --concurrent-endpoint-syncs=1000' /etc/kubernetes/manifests/kube-controller-manager.yaml"
+
+    server_exec $MASTER_NODE "sudo sed -i '34a\\
+    - --quota-backend-bytes=16000000000' /etc/kubernetes/manifests/etcd.yaml"
+
+    sleep 60
     
     # update limits
     server_exec $MASTER_NODE "kubectl patch deployment istio-ingressgateway -n istio-system --patch \
