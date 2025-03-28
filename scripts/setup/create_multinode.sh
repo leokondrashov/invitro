@@ -295,15 +295,6 @@ function distribute_loader_ssh_key() {
 
     server_exec $MASTER_NODE "kubectl patch configmap config-deployment -n knative-serving -p '{\"data\": {\"queue-sidecar-image\": \"lkondras/queue-39be6f1d08a095bd076a71d288d295b6:fast-drain\"}}'"
 
-    server_exec $MASTER_NODE "sudo cat /etc/kubernetes/manifests/kube-controller-manager.yaml | \
-        yq '(.spec.containers[0].command) += [\"--kube-api-qps=1000\", \"--kube-api-burst=2000\", \"--concurrent-deployment-syncs=1000\", \"--concurrent-replicaset-syncs=1000\",\
-        \"--concurrent-service-endpoint-syncs=50\", \"--concurrent-endpoint-syncs=1000\"]' > tmp.yaml && sudo mv tmp.yaml /etc/kubernetes/manifests/kube-controller-manager.yaml"
-
-    server_exec $MASTER_NODE "sudo cat /etc/kubernetes/manifests/etcd.yaml | \
-        yq '(.spec.containers[0].command) += [\"--quota-backend-bytes=16000000000\"]' > tmp.yaml && sudo mv tmp.yaml /etc/kubernetes/manifests/etcd.yaml"
-
-    sleep 60
-    
     # update limits
     server_exec $MASTER_NODE "kubectl patch deployment istio-ingressgateway -n istio-system --patch \
         '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"istio-proxy\",\"resources\":{\"limits\":{\"cpu\":\"10\", \"memory\":\"20Gi\"}}}]}}}}'"
@@ -315,4 +306,13 @@ function distribute_loader_ssh_key() {
     if [[ "$DEPLOY_PROMETHEUS" == true ]]; then
         $DIR/expose_infra_metrics.sh $MASTER_NODE
     fi
+    
+    server_exec $MASTER_NODE "sudo cat /etc/kubernetes/manifests/kube-controller-manager.yaml | \
+        yq '(.spec.containers[0].command) += [\"--kube-api-qps=1000\", \"--kube-api-burst=2000\", \"--concurrent-deployment-syncs=1000\", \"--concurrent-replicaset-syncs=1000\",\
+        \"--concurrent-service-endpoint-syncs=50\", \"--concurrent-endpoint-syncs=1000\"]' > tmp.yaml && sudo mv tmp.yaml /etc/kubernetes/manifests/kube-controller-manager.yaml"
+
+    server_exec $MASTER_NODE "sudo cat /etc/kubernetes/manifests/etcd.yaml | \
+        yq '(.spec.containers[0].command) += [\"--quota-backend-bytes=16000000000\"]' > tmp.yaml && sudo mv tmp.yaml /etc/kubernetes/manifests/etcd.yaml"
+
+    sleep 60
 }
