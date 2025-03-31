@@ -37,3 +37,43 @@ spec:
         - containerPort: 80
       nodeSelector:
         loader-nodetype: worker
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: timer-service-tmp
+  namespace: kwok-system
+  labels:
+    app: timer-tmp
+spec:
+  selector:
+    app: timer-tmp
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: timer-deployment-tmp
+  namespace: kwok-system
+  labels:
+    app: timer-tmp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: timer-tmp
+  template:
+    metadata:
+      labels:
+        app: timer-tmp
+    spec:
+      containers:
+      - name: timer-container
+        image: wanghanchengchn/timer:latest
+        ports:
+        - containerPort: 80
+      nodeSelector:
+        loader-nodetype: worker
