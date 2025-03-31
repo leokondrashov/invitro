@@ -315,7 +315,7 @@ function distribute_loader_ssh_key() {
     # Force placement of metrics collectors and instrumentation on the loader node and control plane on master
     label_nodes $MASTER_NODE $1 # loader node is second on the list, becoming first after arg shift
 
-    server_exec $MASTER_NODE "kubectl patch configmap -n knative-serving config-features -p '{\"data\": {\"kubernetes.podspec-affinity\": \"enabled\"}}'"
+    server_exec $MASTER_NODE "kubectl patch configmap -n knative-serving config-features -p '{\"data\": {\"kubernetes.podspec-affinity\": \"enabled\", \"kubernetes.podspec-nodeselector\": \"enabled\"}}'"
 
     server_exec $MASTER_NODE "kubectl patch configmap config-logging -n knative-serving -p '{\"data\": {\"loglevel.activator\": \"debug\"}}'"
     server_exec $MASTER_NODE "kubectl patch clusterrole knative-serving-activator-cluster --type='json' -p \
