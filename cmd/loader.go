@@ -96,6 +96,7 @@ func main() {
 		common.PlatformOpenWhisk,
 		common.PlatformAWSLambda,
 		common.PlatformDirigent,
+		common.PlatformGCR,
 	}
 	if !slices.Contains(supportedPlatforms, cfg.Platform) {
 		log.Fatal("Unsupported platform!")
@@ -152,7 +153,7 @@ func parseYAMLSpecification(cfg *config.LoaderConfiguration) string {
 	case "kwok":
 		return "workloads/container/kwok_fake_pod.yaml"
 	default:
-		if cfg.Platform != common.PlatformDirigent {
+		if cfg.Platform != common.PlatformDirigent && cfg.Platform != common.PlatformGCR {
 			log.Fatal("Invalid 'YAMLSelector' parameter.")
 		}
 	}
