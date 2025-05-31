@@ -1,8 +1,8 @@
 {
     "Region": "us-central1",
-    "Project": "serverless-scheduling",
-    "ServiceAccount": "328799819690-compute@developer.gserviceaccount.com",
+    "Project": "quiet-capsule-461008-h5",
+    "ServiceAccount": "387014267581-compute@developer.gserviceaccount.com",
 
     "AllowUnauthenticated": true,
-    "EndpointSuffix": "328799819690"
+    "EndpointSuffix": "387014267581"
 }

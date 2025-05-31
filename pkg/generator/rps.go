@@ -2,11 +2,12 @@ package generator
 
 import (
 	"fmt"
+	"math"
+	"math/rand"
+
 	"github.com/sirupsen/logrus"
 	"github.com/vhive-serverless/loader/pkg/common"
 	"github.com/vhive-serverless/loader/pkg/config"
-	"math"
-	"math/rand"
 )
 
 func generateFunctionByRPS(experimentDuration int, rpsTarget float64) common.IATArray {
@@ -118,7 +119,7 @@ func CreateRPSFunctions(cfg *config.LoaderConfiguration, dcfg *config.DirigentCo
 				Image:               dcfg.RpsImage,
 				Port:                80,
 				Protocol:            "tcp",
-				ScalingUpperBound:   1024,
+				ScalingUpperBound:   400,
 				ScalingLowerBound:   1,
 				IterationMultiplier: cfg.RpsIterationMultiplier,
 				IOPercentage:        0,

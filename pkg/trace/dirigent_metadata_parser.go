@@ -2,10 +2,11 @@ package trace
 
 import (
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
-	"github.com/vhive-serverless/loader/pkg/common"
 	"os"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/vhive-serverless/loader/pkg/common"
 )
 
 type DirigentMetadataParser struct {
@@ -58,7 +59,7 @@ func (dmp *DirigentMetadataParser) Parse() {
 	for _, function := range dmp.functions {
 		if dirigentMetadata != nil {
 			function.DirigentMetadata = dirigentMetadataByHashFunction[function.InvocationStats.HashFunction]
-		} else if strings.Contains(strings.ToLower(dmp.platform), common.PlatformKnative) {
+		} else if strings.Contains(strings.ToLower(dmp.platform), common.PlatformKnative) || strings.Contains(strings.ToLower(dmp.platform), common.PlatformGCR) {
 			// values are not used for Knative so they are irrelevant
 			function.DirigentMetadata = convertKnativeYamlToDirigentMetadata(dmp.yamlPath)
 		}

@@ -14,7 +14,7 @@
   "RpsImage": "ghcr.io/vhive-serverless/invitro_empty_function:latest",
   "RpsRuntimeMs": 10,
   "RpsMemoryMB": 2048,
-  "RpsIterationMultiplier": 80,
+  "RpsIterationMultiplier": 100,
 
   "TracePath": "RPS",
   "Granularity": "minute",
