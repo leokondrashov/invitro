@@ -5,10 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/vhive-serverless/loader/pkg/common"
-	"github.com/vhive-serverless/loader/pkg/config"
-	mc "github.com/vhive-serverless/loader/pkg/metric"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -16,6 +12,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/vhive-serverless/loader/pkg/common"
+	"github.com/vhive-serverless/loader/pkg/config"
+	mc "github.com/vhive-serverless/loader/pkg/metric"
 )
 
 type FunctionResponse struct {

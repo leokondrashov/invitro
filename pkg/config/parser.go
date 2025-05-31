@@ -204,7 +204,7 @@ func ReadWorkflowConfig(path string) WorkflowConfig {
 }
 
 func ReadDirigentConfig(cfg *LoaderConfiguration) *DirigentConfig {
-	if cfg.Platform != common.PlatformDirigent {
+	if cfg.Platform != common.PlatformDirigent && cfg.Platform != common.PlatformGCR {
 		return nil
 	}
 
