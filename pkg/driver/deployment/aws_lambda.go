@@ -178,7 +178,7 @@ func initAWSLambda(functions []*common.Function, provider string) (string, [][]*
 
 // initECRRepository creates a private ECR repository and uploads the default Docker image to the repository using AWS CLI and Docker CLI, terminating the program if any command fails
 func initECRRepository(awsAccountId string) {
-	originalDockerImageUri := fmt.Sprintf("ghcr.io/vhive-serverless/%s:latest", common.AwsTraceFuncRepositoryName)
+	originalDockerImageUri := fmt.Sprintf("ghcr.io/vhive-serverless/%s:test", common.AwsTraceFuncRepositoryName)
 	awsEcrRepositoryFormat := fmt.Sprintf("%s.dkr.ecr.%s.amazonaws.com", awsAccountId, common.AwsRegion)
 	uploadedDockerImageUri := fmt.Sprintf("%s/%s:latest", awsEcrRepositoryFormat, common.AwsTraceFuncRepositoryName)
 

@@ -2,13 +2,14 @@ package deployment
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/vhive-serverless/loader/pkg/common"
-	"gopkg.in/yaml.v3"
 	"os"
 	"os/exec"
 	"regexp"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/vhive-serverless/loader/pkg/common"
+	"gopkg.in/yaml.v3"
 )
 
 // Serverless describes the serverless.yml contents.
@@ -33,11 +34,12 @@ type slsPackage struct {
 }
 
 type slsFunction struct {
-	Image       string `yaml:"image"`
-	Description string `yaml:"description"`
-	Name        string `yaml:"name"`
-	Url         bool   `yaml:"url"`
-	Timeout     string `yaml:"timeout"`
+	Image       string            `yaml:"image"`
+	Description string            `yaml:"description"`
+	Name        string            `yaml:"name"`
+	Url         bool              `yaml:"url"`
+	Timeout     string            `yaml:"timeout"`
+	Environment map[string]string `yaml:"environment,omitempty"`
 }
 
 // CreateHeader sets the fields Service, FrameworkVersion, and Provider
@@ -85,7 +87,7 @@ func (s *Serverless) AddFunctionConfig(function *common.Function, provider strin
 		log.Fatalf("AddFunctionConfig could not recognize provider %s", provider)
 	}
 
-	f := &slsFunction{Image: image, Description: "", Name: shortName, Url: true, Timeout: timeout}
+	f := &slsFunction{Image: image, Description: "", Name: shortName, Url: true, Timeout: timeout, Environment: map[string]string{"ITERATIONS_MULTIPLIER": "70"}}
 	s.Functions[function.Name] = f
 }
 

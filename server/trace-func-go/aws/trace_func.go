@@ -28,11 +28,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
+	"strconv"
+	"time"
+
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/vhive-serverless/loader/pkg/common"
-	"github.com/vhive-serverless/loader/pkg/workload/standard"
-	"time"
 )
 
 // Response is of type APIGatewayProxyResponse since we're leveraging the
@@ -58,8 +60,11 @@ func Handler(_ context.Context, event events.LambdaFunctionURLRequest) (Response
 		return Response{StatusCode: 400}, err
 	}
 
-	standard.IterationsMultiplier = 102 // Cloudlab xl170 benchmark @ 1 second function execution time
-	_ = common.TraceFunctionExecution(start, 102, req.RuntimeInMilliSec)
+	IterationsMultiplier := 102 // Default value
+	if _, ok := os.LookupEnv("ITERATIONS_MULTIPLIER"); ok {
+		IterationsMultiplier, _ = strconv.Atoi(os.Getenv("ITERATIONS_MULTIPLIER"))
+	}
+	_ = common.TraceFunctionExecution(start, uint32(IterationsMultiplier), req.RuntimeInMilliSec)
 
 	body, err := json.Marshal(map[string]interface{}{
 		"DurationInMicroSec": uint32(time.Since(start).Microseconds()),
