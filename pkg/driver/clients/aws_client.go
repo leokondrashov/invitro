@@ -1,17 +1,18 @@
 package clients
 
 import (
+	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"sync"
+	"time"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/vhive-serverless/loader/pkg/common"
 	mc "github.com/vhive-serverless/loader/pkg/metric"
-	"io"
-	"sync"
-	"net/http"
-	"crypto/tls"
-	"bytes"
-	"time"
 )
 
 type awsLambdaInvoker struct {
@@ -106,6 +107,6 @@ func awsHttpInvocation(dataString string, function *common.Function, AnnounceDon
 		return false, record, resp
 	}
 
+	record.ResponseTime = time.Since(start).Microseconds()
 	return true, record, resp
 }
-
