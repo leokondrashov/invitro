@@ -2,12 +2,13 @@ package deployment
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/vhive-serverless/loader/pkg/common"
-	"github.com/vhive-serverless/loader/pkg/config"
 	"os"
 	"os/exec"
 	"sync"
+
+	"github.com/sirupsen/logrus"
+	"github.com/vhive-serverless/loader/pkg/common"
+	"github.com/vhive-serverless/loader/pkg/config"
 )
 
 type gcrDeployer struct {
@@ -31,10 +32,14 @@ func (gcr *gcrDeployer) Deploy(cfg *config.Configuration) {
 	gcr.region = cfg.GCRConfiguration.Region
 
 	wg := sync.WaitGroup{}
+	queue := make(chan struct{}, 4) // message queue as a sync method
 	for _, f := range cfg.Functions {
 		wg.Add(1)
 
 		go func() {
+			queue <- struct{}{}
+
+			defer func() { <-queue }()
 			defer wg.Done()
 
 			deploySingle(f, cfg)
@@ -103,10 +108,14 @@ func deploySingle(function *common.Function, configuration *config.Configuration
 
 func (gcr *gcrDeployer) Clean() {
 	wg := sync.WaitGroup{}
+	queue := make(chan struct{}, 5) // message queue as a sync method
 	for _, function := range gcr.functions {
 		wg.Add(1)
 
 		go func() {
+			queue <- struct{}{}
+
+			defer func() { <-queue }()
 			defer wg.Done()
 
 			args := []string{
