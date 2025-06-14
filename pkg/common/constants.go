@@ -101,10 +101,12 @@ const (
 // CPULimits
 const (
 	CPULimit1vCPU string = "1vCPU"
+	CPULimit2vCPU string = "2vCPU"
+	CPULimit4vCPU string = "4vCPU"
 	CPULimitGCP   string = "GCP"
 )
 
-var ValidCPULimits = []string{CPULimit1vCPU, CPULimitGCP}
+var ValidCPULimits = []string{CPULimit1vCPU, CPULimit2vCPU, CPULimit4vCPU, CPULimitGCP}
 
 // platform
 const (
