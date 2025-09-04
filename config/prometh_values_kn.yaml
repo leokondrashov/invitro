@@ -70,15 +70,16 @@ kubeProxy:
     interval: "15s"
 
 kube-state-metrics:
-  nodeAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: loader-nodetype
-          operator: In
-          values:
-          - monitoring
-          - singlenode
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: loader-nodetype
+            operator: In
+            values:
+            - monitoring
+            - singlenode
   metricLabelsAllowlist:
     - pods=[*]
     - deployments=[app.kubernetes.io/name,app.kubernetes.io/component,app.kubernetes.io/instance]
@@ -87,6 +88,8 @@ kube-state-metrics:
       interval: "15s"
 
 prometheus-node-exporter:
+  service:
+    listenOnAllInterfaces: false
   prometheus:
     monitor:
       interval: "15s"
@@ -98,19 +101,19 @@ prometheusOperator:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-            - matchExpressions:
-              - key: loader-nodetype
-                operator: In
-                values:
-                - monitoring
-                - singlenode
+              - matchExpressions:
+                - key: loader-nodetype
+                  operator: In
+                  values:
+                    - monitoring
+                    - singlenode
     patch:
-      resources: 
+      resources:
         limits:
           cpu: 1
           memory: 5Gi
         requests:
-          memory: 150Mi 
+          memory: 150Mi
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
           nodeSelectorTerms:
@@ -155,6 +158,7 @@ prometheus:
     interval: "15s"
 
   prometheusSpec:
+    maximumStartupDurationSeconds: 60
     scrapeInterval: "15s"
     affinity:
       nodeAffinity:
