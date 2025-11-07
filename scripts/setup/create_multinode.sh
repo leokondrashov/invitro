@@ -149,13 +149,9 @@ function setup_workers() {
         echo "Worker node $node joined the cluster (again :P)."
 
         # Deploy node agent
-        scp ~/.github_token $node:~/.github_token
-        server_exec $node "git clone --branch=$KHALA_BRANCH https://leokondrashov:`cat ~/.github_token`@${KHALA_REPO#https://} khala"
-        server_exec $node "sudo apt-get install acl && sudo setfacl -m u:${USER}:rw /dev/kvm && sudo usermod -aG kvm ${USER} && sudo setfacl -m u:${USER}:rw /dev/userfaultfd"
-        server_exec $node "pushd ~/khala > /dev/null && bash ./scripts/get_asset.sh && popd > /dev/null"
-        server_exec $node "pushd ~/khala > /dev/null && source /etc/profile && go build ./cmd/vm-relay"
+        server_exec $node "pushd ~/vhive > /dev/null && bash ./scripts/setup_pulsenet.sh && popd > /dev/null"
         server_exec $node "tmux new -s relay -d"
-        server_exec $node "tmux send -t relay 'pushd ~/khala > /dev/null && sudo ./vm-relay 2>&1 | tee ~/relay_log.txt' ENTER"
+        server_exec $node "tmux send -t relay 'pushd ~/vhive/cmd/relay > /dev/null && go build && sudo ./relay -ss proxy -dockerCredentials '{\"docker-credentials\":{\"ghcr.io\":{\"username\":\"\",\"password\":\"\"}}}' -minioCredentials '$MASTER_NODE:9000;minio;minio123' -snapshots remote -dbg -netPoolSize 1 -chunking -upf -ws -lazy 2>&1 | tee ~/relay_log.txt' ENTER"
     }
 
     for node in "$@"
@@ -301,6 +297,23 @@ function distribute_loader_ssh_key() {
     done
 
     echo "Master node $MASTER_NODE finalised."
+
+    if [ $CLUSTER_MODE = "firecracker_remote_snapshots" ]; then
+        echo "Setting up MinIO for remote snapshots on master node: $MASTER_NODE"
+        server_exec $MASTER_NODE 'sudo mkdir -p ~/tmp/minio'
+        server_exec $MASTER_NODE 'cd ~/vhive/configs/storage/minio && \
+            MINIO_NODE_NAME=$(hostname) MINIO_PATH=~/tmp/minio envsubst < pv.yaml | kubectl apply -f - && \
+            kubectl apply -f pv-claim.yaml && \
+            kubectl apply -f deployment.yaml && \
+            kubectl apply -f service.yaml'
+
+        # Wait for MinIO to be ready
+        echo "Waiting for MinIO to be ready..."
+        while ! kubectl get pods -n default -l app=minio | grep -q "Running"; do
+            sleep 5
+        done
+        echo "MinIO is ready."
+    fi
 
     # Copy API server certificates from master to each worker node
     copy_k8s_certificates "$@"
