@@ -151,7 +151,7 @@ function setup_workers() {
         # Deploy node agent
         server_exec $node "pushd ~/vhive > /dev/null && bash ./scripts/setup_pulsenet.sh && popd > /dev/null"
         server_exec $node "tmux new -s relay -d"
-        server_exec $node "tmux send -t relay 'pushd ~/vhive/cmd/relay > /dev/null && go build && sudo ./relay -ss proxy -dockerCredentials '{\"docker-credentials\":{\"ghcr.io\":{\"username\":\"\",\"password\":\"\"}}}' -minioCredentials '$MASTER_NODE:9000;minio;minio123' -snapshots remote -dbg -netPoolSize 1 -chunking -upf -ws -lazy 2>&1 | tee ~/relay_log.txt' ENTER"
+        server_exec $node "tmux send -t relay 'pushd ~/vhive/cmd/relay > /dev/null && go build && sudo ./relay -ss proxy -dockerCredentials '{\"docker-credentials\":{\"ghcr.io\":{\"username\":\"\",\"password\":\"\"}}}' -minioCredentials '$MASTER_NODE:9000;minio;minio123' -snapshots remote -dbg -netPoolSize 1 -endpoint `hostname -I | awk '$1 ~ /^10\.0/ {print $1; exit}'`:8080 -chunking -upf -ws -lazy 2>&1 | tee ~/relay_log.txt' ENTER"
     }
 
     for node in "$@"
