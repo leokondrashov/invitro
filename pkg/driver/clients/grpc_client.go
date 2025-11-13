@@ -26,6 +26,7 @@ package clients
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -102,7 +103,16 @@ func (i SayHelloRPC) Invoke(function *common.Function, runtimeSpec *common.Runti
 
 		return false
 	}
-	record.ActualDuration = 0
+	parts := strings.Split(response.GetMessage(), "|")
+	if len(parts) > 1 {
+		if num, err := strconv.ParseUint(strings.TrimSpace(parts[len(parts)-1]), 10, 32); err == nil {
+			record.ActualDuration = uint32(num)
+		} else {
+			record.ActualDuration = 0
+		}
+	} else {
+		record.ActualDuration = 0
+	}
 	record.Instance = extractSwarmFunction(response.GetMessage())
 	record.ActualMemoryUsage = common.Kib2Mib(0) //Memory usage may not be available for all vSwarm benchmarks
 
