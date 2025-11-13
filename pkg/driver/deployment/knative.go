@@ -87,16 +87,21 @@ func (*knativeDeployer) Clean() {
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
-
 	if err := cmd.Run(); err != nil {
 		log.Errorf("Unable to delete Knative services - %s", err)
 	}
-	preDepCmd := exec.Command("kubectl", "delete", "pods", "--all")
+
+	preDepCmd := exec.Command("kubectl", "delete", "services", "--all", "--force")
 	preDepCmd.Stdout = &out
 	if err := preDepCmd.Run(); err != nil {
 		log.Error("Unable to clean up predeployment files")
 	}
-	preDepCmd = exec.Command("kubectl", "delete", "services", "--all")
+	preDepCmd = exec.Command("kubectl", "delete", "deployment", "--all", "--force")
+	preDepCmd.Stdout = &out
+	if err := preDepCmd.Run(); err != nil {
+		log.Error("Unable to clean up predeployment files")
+	}
+	preDepCmd = exec.Command("kubectl", "delete", "jobs", "--all", "--force")
 	preDepCmd.Stdout = &out
 	if err := preDepCmd.Run(); err != nil {
 		log.Error("Unable to clean up predeployment files")
@@ -121,7 +126,7 @@ func knativeDeploySingleFunction(function *common.Function, yamlPath string, isP
 		status := <-envCmd.Start()
 
 		for _, line := range status.Stdout {
-			fmt.Println("Predeployment command response is" + line)
+			fmt.Println("Predeployment command response is " + line)
 		}
 	}
 	cmd := exec.Command(
