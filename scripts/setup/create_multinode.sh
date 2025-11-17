@@ -301,6 +301,7 @@ function distribute_loader_ssh_key() {
     if [ $CLUSTER_MODE = "firecracker_remote_snapshots" ]; then
         echo "Setting up MinIO for remote snapshots on master node: $MASTER_NODE"
         server_exec $MASTER_NODE 'sudo mkdir -p ~/tmp/minio'
+        server_exec $MASTER_NODE 'kubeclt create namespace minio'
         server_exec $MASTER_NODE 'cd ~/vhive/configs/storage/minio && \
             MINIO_NODE_NAME=$(hostname) MINIO_PATH=~/tmp/minio envsubst < pv.yaml | kubectl apply -f - && \
             kubectl apply -f pv-claim.yaml && \
