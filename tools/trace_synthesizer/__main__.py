@@ -132,6 +132,14 @@ def main():
         help='Normal [0]; RPS sweep [1]; Burst [2]'
     )
 
+    gen_parser.add_argument(
+        '--existing-trace',
+        required=False,
+        type=str,
+        metavar='path',
+        help='Path to existing trace directory to modify invocation data'
+    )
+
     args = parser.parse_args()
 
     return run(args)

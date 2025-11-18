@@ -1,0 +1,44 @@
+{
+  "Seed": 42,
+
+  "Platform": "Knative",
+  "InvokeProtocol" : "grpc",
+  "YAMLSelector": "container",
+  "EndpointPort": 80,
+
+  "BusyLoopOnSandboxStartup": false,
+
+  "TracePath": "/users/lkondras/traces/samples/$FUNC",
+  "Granularity": "minute",
+  "OutputPathPrefix": "data/out/$EXPERIMENT/experiment",
+  "IATDistribution": "exponential_shift",
+  "CPULimit": "1vCPU",
+  "ExperimentDuration": 20,
+  "WarmupDuration": 10,
+  "SkipDuration": 60,
+
+  "IsPartiallyPanic": false,
+  "EnableZipkinTracing": false,
+  "EnableMetricsScrapping": true,
+  "MetricScrapingPeriodSeconds": 15,
+  "AutoscalingMetric": "concurrency",
+
+  "GRPCConnectionTimeoutSeconds": 15,
+  "GRPCFunctionTimeoutSeconds": 900,
+  "DAGMode": false,
+  "EnableDAGDataset": true,
+  "Width": 2,
+  "Depth": 2,
+
+  "BackgroundCommands": [
+	  {
+		"Command": "for n in {1..8}; do ssh -oStrictHostKeyChecking=no lkondras@10.0.1.$n killall top; ssh lkondras@10.0.1.$n 'top -b -d 15 -c -w 512 > top.txt'& done",
+		"Timestamp": 0
+	  },
+	  {
+		"Command": "i=0; for n in {1..8}; do ssh lkondras@10.0.1.$n killall top; (scp lkondras@10.0.1.$n:top.txt data/out/$EXPERIMENT/top_$i.txt&) ; let i=$i+1; done",
+		"Timestamp": 1800
+	  }
+
+  ]
+}

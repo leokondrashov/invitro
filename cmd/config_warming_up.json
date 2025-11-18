@@ -1,0 +1,33 @@
+{
+  "Seed": 42,
+
+  "Platform": "Knative",
+  "InvokeProtocol" : "grpc",
+  "YAMLSelector": "container",
+  "EndpointPort": 80,
+
+  "BusyLoopOnSandboxStartup": false,
+
+  "TracePath": "tools/trace_synthesizer/warming_up/",
+  "Granularity": "second",
+  "OutputPathPrefix": "data/out/tmp",
+  "IATDistribution": "exponential",
+  "CPULimit": "1vCPU",
+  "ExperimentDuration": 400,
+  "WarmupDuration": 0,
+  "InvocationColumnShift": 0,
+
+  "IsPartiallyPanic": false,
+  "EnableZipkinTracing": false,
+  "EnableMetricsScrapping": false,
+  "MetricScrapingPeriodSeconds": 15,
+  "AutoscalingMetric": "concurrency",
+
+  "GRPCConnectionTimeoutSeconds": 15,
+  "GRPCFunctionTimeoutSeconds": 900,
+  "DAGMode": false,
+  "EnableDAGDataset": true,
+  "Width": 2,
+  "Depth": 2,
+  "VSwarm": true
+}

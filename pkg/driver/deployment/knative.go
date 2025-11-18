@@ -73,7 +73,7 @@ func (*knativeDeployer) Deploy(cfg *config.Configuration) {
 
 	deployed.Wait()
 	start := time.Now()
-	cmd := exec.Command("kubectl", "annotate", "--overwrite", "PodAutoscaler", "-n", "default", "--selector=app=server", "autoscaling.knative.dev/min-scale=0")
+	cmd := exec.Command("kubectl", "annotate", "--overwrite", "PodAutoscaler", "-n", "default", "autoscaling.knative.dev/min-scale=0")
 	err := cmd.Start()
 	if err != nil {
 		log.Fatalf("Failed to execute script: %v", err)
