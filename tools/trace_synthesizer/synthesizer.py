@@ -58,8 +58,8 @@ def generate(args):
             inv_df = pd.concat([inv_df, new_cols], axis=1)
         for i in range(functions):
             inv_df.iloc[i, 4:] = 0
-            if i < 1440:
-                inv_df.iloc[i, 4 + i] = 1
+            if i < 720:
+                inv_df.iloc[i, 4 + 2*i] = 1
     else:
         functions = args.functions
         inv_df = load_data("base_traces/inv.csv")

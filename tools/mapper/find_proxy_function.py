@@ -76,10 +76,10 @@ def get_closest_proxy_function(
             min_error_index
         ]["name"]
 
-        if abs(trace_functions[id]["duration"]["50-percentile"] - proxy_functions[trace_functions[id]["proxy-function"]]["duration"]["50-percentile"]) > 0.4*trace_functions[id]["duration"]["50-percentile"]:
-            log.warning(f"Duration error for id {id} above 40%. Using InVitro trace function.")
-            trace_functions[id]["proxy-function"] = "trace-func-go"
-            continue
+#        if abs(trace_functions[id]["duration"]["50-percentile"] - proxy_functions[trace_functions[id]["proxy-function"]]["duration"]["50-percentile"]) > 0.4*trace_functions[id]["duration"]["50-percentile"]:
+#            log.warning(f"Duration error for id {id} above 40%. Using InVitro trace function.")
+#            trace_functions[id]["proxy-function"] = "trace-func-go"
+#            continue
 
     for function_name in proxy_functions:
         del proxy_functions[function_name]["index"]
