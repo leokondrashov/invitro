@@ -151,7 +151,7 @@ function setup_workers() {
         # Deploy node agent
         server_exec $node "pushd ~/vhive > /dev/null && bash ./scripts/setup_pulsenet.sh && popd > /dev/null"
         server_exec $node "tmux new -s relay -d"
-        server_exec $node "tmux send -t relay 'pushd ~/vhive/cmd/relay > /dev/null && go build && sudo ./relay -ss proxy -dockerCredentials '{\"docker-credentials\":{\"ghcr.io\":{\"username\":\"\",\"password\":\"\"}}}' -minioCredentials '$MASTER_NODE:9000;minio;minio123' -snapshots remote -dbg -netPoolSize 1 -endpoint `hostname -I | awk '$1 ~ /^10\.0/ {print $1; exit}'`:8080 -chunking -upf -ws -lazy 2>&1 | tee ~/relay_log.txt' ENTER"
+        server_exec $node "tmux send -t relay 'pushd ~/vhive/cmd/relay > /dev/null && go build && sudo ./relay -ss proxy -snapshots remote -dbg -netPoolSize 1 -endpoint `hostname -I | awk '$1 ~ /^10\.0/ {print $1; exit}'`:8080 -chunking -upf -ws -lazy 2>&1 | tee ~/relay_log.txt' ENTER"
     }
 
     for node in "$@"
@@ -298,10 +298,10 @@ function distribute_loader_ssh_key() {
 
     echo "Master node $MASTER_NODE finalised."
 
-    if [ $CLUSTER_MODE = "firecracker_remote_snapshots" ]; then
+    if [ $CLUSTER_MODE = "firecracker_remote_snapshots" || $REMOTE_SNAPSHOTS = true ]; then
         echo "Setting up MinIO for remote snapshots on master node: $MASTER_NODE"
         server_exec $MASTER_NODE 'sudo mkdir -p ~/tmp/minio'
-        server_exec $MASTER_NODE 'kubeclt create namespace minio'
+        server_exec $MASTER_NODE 'kubectl create namespace minio'
         server_exec $MASTER_NODE 'cd ~/vhive/configs/storage/minio && \
             MINIO_NODE_NAME=$(hostname) MINIO_PATH=~/tmp/minio envsubst < pv.yaml | kubectl apply -f - && \
             kubectl apply -f pv-claim.yaml && \
@@ -310,7 +310,7 @@ function distribute_loader_ssh_key() {
 
         # Wait for MinIO to be ready
         echo "Waiting for MinIO to be ready..."
-        while ! kubectl get pods -n default -l app=minio | grep -q "Running"; do
+        while ! server_exec $MASTER_NODE 'kubectl get pods -n minio -l app=minio | grep -q "Running"'; do
             sleep 5
         done
         echo "MinIO is ready."
