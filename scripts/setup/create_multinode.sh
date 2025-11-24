@@ -147,16 +147,24 @@ function setup_workers() {
         # Rejoin has to be performed although errors will be thrown. Otherwise, restarting the kubelet will cause the node unreachable for some reason
         server_exec $node "sudo ${LOGIN_TOKEN} > /dev/null 2>&1"
         echo "Worker node $node joined the cluster (again :P)."
-
-        # Deploy node agent
-        server_exec $node "pushd ~/vhive > /dev/null && bash ./scripts/setup_pulsenet.sh && popd > /dev/null"
-        server_exec $node "tmux new -s relay -d"
-        server_exec $node "tmux send -t relay 'pushd ~/vhive/cmd/relay > /dev/null && go build && sudo ./relay -ss proxy -snapshots remote -dbg -netPoolSize 1 -endpoint `hostname -I | awk '$1 ~ /^10\.0/ {print $1; exit}'`:8080 -chunking -upf -ws -lazy 2>&1 | tee ~/relay_log.txt' ENTER"
     }
 
     for node in "$@"
     do
         internal_setup "$node" &
+    done
+
+    wait
+}
+
+function setup_relays() {
+    for node in "$@"
+    do
+        echo "Setting up relay on node: $node"
+        # Deploy node agent
+        server_exec $node "pushd ~/vhive > /dev/null && bash ./scripts/setup_pulsenet.sh && popd > /dev/null"
+        server_exec $node "tmux new -s relay -d"
+        server_exec $node "tmux send -t relay 'pushd ~/vhive/cmd/relay > /dev/null && go build && sudo ./relay -ss proxy -snapshots remote -dbg -netPoolSize 1 -endpoint `hostname -I | awk '$1 ~ /^10\.0/ {print $1; exit}'`:8080 -chunking -upf -ws -lazy 2>&1 | tee ~/relay_log.txt' ENTER"
     done
 
     wait
@@ -315,6 +323,8 @@ function distribute_loader_ssh_key() {
         done
         echo "MinIO is ready."
     fi
+
+    setup_relays "$@"
 
     # Copy API server certificates from master to each worker node
     copy_k8s_certificates "$@"
