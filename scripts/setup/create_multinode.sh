@@ -233,8 +233,7 @@ function extend_CIDR() {
 function clone_loader() {
     server_exec $1 "git clone --depth=1 --branch=$LOADER_BRANCH $LOADER_REPO loader"
     server_exec $1 'echo -en "\n\n" | sudo apt-get install -y python3-pip python3-venv'
-    server_exec $1 'python3 -m venv ~/.venv; source ~/.venv/bin/activate'
-    server_exec $1 'cd; cd loader; pip install -r config/requirements.txt'
+    server_exec $1 'python3 -m venv ~/.venv; source ~/.venv/bin/activate; cd loader; pip install -r config/requirements.txt'
 }
 
 function copy_k8s_certificates() {
@@ -307,7 +306,7 @@ function distribute_loader_ssh_key() {
 
     echo "Master node $MASTER_NODE finalised."
 
-    if [ $CLUSTER_MODE = "firecracker_remote_snapshots" || $REMOTE_SNAPSHOTS = true ]; then
+    if [[ $CLUSTER_MODE = "firecracker_remote_snapshots" || $REMOTE_SNAPSHOTS = true ]]; then
         echo "Setting up MinIO for remote snapshots on master node: $MASTER_NODE"
         server_exec $MASTER_NODE 'sudo mkdir -p ~/tmp/minio'
         server_exec $MASTER_NODE 'kubectl create namespace minio'
