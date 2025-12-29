@@ -233,7 +233,7 @@ function extend_CIDR() {
 function clone_loader() {
     server_exec $1 "git clone --depth=1 --branch=$LOADER_BRANCH $LOADER_REPO loader"
     server_exec $1 'echo -en "\n\n" | sudo apt-get install -y python3-pip python3-venv'
-    server_exec $1 'python3 -m venv ~/.venv; source ~/.venv/bin/activate; cd loader; pip install -r config/requirements.txt'
+    server_exec $1 'python3 -m venv ~/.venv; source ~/.venv/bin/activate; cd loader; pip install --upgrade pip; pip install -r config/requirements.txt'
 }
 
 function copy_k8s_certificates() {
