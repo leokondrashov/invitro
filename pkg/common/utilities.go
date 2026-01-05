@@ -164,10 +164,11 @@ func DeepCopy[T any](a T) (T, error) {
 	return b, err
 }
 
-func RunCommand(command string) {
+func RunCommand(command, outDir string) {
 	if command == "" {
 		return
 	}
+	command = strings.ReplaceAll(command, "$OUT_DIR", outDir)
 	logger.Debug("Running command ", command)
 	cmd, err := exec.Command("sh", "-c", command).Output()
 	if err != nil {

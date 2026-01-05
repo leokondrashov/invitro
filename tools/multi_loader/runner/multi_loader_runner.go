@@ -43,6 +43,7 @@ type MultiLoaderRunner struct {
 **/
 func NewMultiLoaderRunner(configPath string, verbosity string, failFast bool) (*MultiLoaderRunner, error) {
 	multiLoaderConfig := ml_common.ReadMultiLoaderConfigurationFile(configPath)
+	multiLoaderConfig.Timestamp = time.Now().Format(TIME_FORMAT)
 
 	// Validate configuration
 	ml_common.CheckMultiLoaderConfig(multiLoaderConfig)
@@ -95,10 +96,11 @@ func (d *MultiLoaderRunner) RunActual() {
 **/
 func (d *MultiLoaderRunner) run() {
 	// Run global prescript
-	common.RunCommand(d.MultiLoaderConfig.PreScript)
+	common.RunCommand(d.MultiLoaderConfig.PreScript, "")
 	// Iterate over studies and run them
 	for si, study := range d.MultiLoaderConfig.Studies {
 		log.Debug("Setting up study: ", study.Name)
+		study.Timestamp = d.MultiLoaderConfig.Timestamp
 
 		// Unpack study to a list of studies with different loader configs
 		experimentsPartialConfig := d.unpackStudy(study)
@@ -112,7 +114,7 @@ func (d *MultiLoaderRunner) run() {
 			}
 			// Run pre script
 			if !d.DryRun {
-				common.RunCommand(experiment.PreScript)
+				common.RunCommand(experiment.PreScript, path.Dir(experiment.Config["OutputPathPrefix"].(string)))
 			}
 
 			// Set metric manager output directory
@@ -139,7 +141,7 @@ func (d *MultiLoaderRunner) run() {
 
 			// Run post script
 			if !d.DryRun {
-				common.RunCommand(experiment.PostScript)
+				common.RunCommand(experiment.PostScript, path.Dir(experiment.Config["OutputPathPrefix"].(string)))
 			}
 
 			// Check if should continue this study
@@ -153,7 +155,7 @@ func (d *MultiLoaderRunner) run() {
 		}
 	}
 	// Run global postscript
-	common.RunCommand(d.MultiLoaderConfig.PostScript)
+	common.RunCommand(d.MultiLoaderConfig.PostScript, "")
 }
 
 /**
@@ -257,12 +259,12 @@ func (d *MultiLoaderRunner) createExperimentFromStudy(study types.LoaderStudy, e
 	studyConfig["OutputPathPrefix"] = path.Join(
 		study.OutputDir,
 		dryRunAdditionalPath,
-		time.Now().Format(TIME_FORMAT)+"_"+study.Name,
+		study.Timestamp,
 		experimentName,
 		"experiment",
 	)
 	// Add loader command flags
-	d.addCommandFlagsToExperiment(experiment)
+	d.addCommandFlagsToExperiment(&experiment)
 
 	// Update trace path
 	if tracePath != "" {
@@ -271,7 +273,7 @@ func (d *MultiLoaderRunner) createExperimentFromStudy(study types.LoaderStudy, e
 	return experiment
 }
 
-func (d *MultiLoaderRunner) addCommandFlagsToExperiment(experiment types.LoaderExperiment) {
+func (d *MultiLoaderRunner) addCommandFlagsToExperiment(experiment *types.LoaderExperiment) {
 	// Add flags to study config
 	if experiment.Verbosity == "" {
 		experiment.Verbosity = d.Verbosity
@@ -481,6 +483,8 @@ func (d *MultiLoaderRunner) executeLoaderCommand(experiment types.LoaderExperime
 		"--iatGeneration="+strconv.FormatBool(experiment.IatGeneration),
 		"--generated="+strconv.FormatBool(experiment.Generated),
 		"--dryRun="+strconv.FormatBool(d.DryRun))
+
+	log.Debug("Executing loader command: ", strings.Join(cmd.Args, " "))
 
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()

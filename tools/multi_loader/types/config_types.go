@@ -26,6 +26,7 @@ type MultiLoaderConfiguration struct {
 	LoaderNode     string   `json:"LoaderNode"`
 	WorkerNodes    []string `json:"WorkerNodes"`
 	Metrics        []string `json:"Metrics"`
+	Timestamp      string
 }
 
 type LoaderStudy struct {
@@ -46,6 +47,7 @@ type LoaderStudy struct {
 	PostScript    string         `json:"PostScript"`
 	Sweep         []SweepOptions `json:"Sweep"`
 	SweepType     string         `json:"SweepType"`
+	Timestamp     string         `json:"Timestamp"`
 }
 
 type LoaderExperiment struct {
