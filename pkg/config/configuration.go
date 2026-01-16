@@ -15,7 +15,8 @@ type Configuration struct {
 	// TraceDuration In minutes.
 	TraceDuration int
 
-	TestMode bool
+	TestMode   bool
+	JustDeploy bool
 
 	Functions []*common.Function
 }

@@ -519,6 +519,11 @@ func (d *Driver) RunExperiment() {
 	deployer := deployment.CreateDeployer(d.Configuration)
 	deployer.Deploy(d.Configuration)
 
+	if d.Configuration.JustDeploy {
+		log.Info("Deployment completed. Exiting as per user request.")
+		return
+	}
+
 	go failure.ScheduleFailure(d.Configuration.LoaderConfiguration.Platform, d.Configuration.FailureConfiguration)
 
 	// Generate load

@@ -54,6 +54,7 @@ var (
 	iatGeneration = flag.Bool("iatGeneration", false, "Generate IATs only or run invocations as well")
 	iatFromFile   = flag.Bool("generated", false, "True if iats were already generated")
 	dryRun        = flag.Bool("dryRun", false, "Dry run mode - do not deploy functions or generate invocations")
+	justDeploy    = flag.Bool("justDeploy", false, "Deploy functions only, do not generate invocations")
 )
 
 func init() {
@@ -210,7 +211,8 @@ func runTraceMode(cfg *config.LoaderConfiguration, readIATFromFile bool, writeIA
 		TraceGranularity: parseTraceGranularity(cfg),
 		TraceDuration:    durationToParse,
 
-		TestMode: false,
+		TestMode:   false,
+		JustDeploy: *justDeploy,
 
 		Functions: functions,
 	})
@@ -248,6 +250,8 @@ func runRPSMode(cfg *config.LoaderConfiguration, readIATFromFile bool, writeIATs
 		TraceDuration:       experimentDuration,
 
 		DirigentConfiguration: dirigentConfig,
+
+		JustDeploy: *justDeploy,
 
 		Functions: generator.CreateRPSFunctions(cfg, dirigentConfig, warmFunction, warmStartCount, coldFunctions, coldStartCount, yamlPath),
 	})
