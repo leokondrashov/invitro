@@ -164,7 +164,7 @@ function setup_relays() {
         # Deploy node agent
         server_exec $node "pushd ~/vhive > /dev/null && bash ./scripts/setup_pulsenet.sh && popd > /dev/null"
         server_exec $node "tmux new -s relay -d"
-        server_exec $node "tmux send -t relay 'pushd ~/vhive/cmd/relay > /dev/null && go build && sudo ./relay -ss proxy -snapshots remote -dbg -netPoolSize 1 -endpoint `hostname -I | awk '$1 ~ /^10\.0/ {print $1; exit}'`:8080 -chunking -upf -ws -lazy 2>&1 | tee ~/relay_log.txt' ENTER"
+        server_exec $node "tmux send -t relay 'pushd ~/vhive/cmd/relay > /dev/null && go build && sudo ./relay -ss proxy -snapshots remote -dbg -netPoolSize 1 -endpoint `hostname -I | awk '$1 ~ /^10\.0/ {print $1; exit}'`:8080 -chunking -upf -ws -lazy 2>&1 | tee ~/relay.log' ENTER"
     done
 
     wait
@@ -295,6 +295,10 @@ function distribute_loader_ssh_key() {
     # Untaint master to schedule knative control plane there
     server_exec $MASTER_NODE "kubectl taint nodes \$(hostname) node-role.kubernetes.io/control-plane-"
 
+    source $DIR/label.sh
+    # Force placement of metrics collectors and instrumentation on the loader node and control plane on master
+    label_nodes $MASTER_NODE $1 # loader node is second on the list, becoming first after arg shift
+
     # Notify the master that all nodes have joined the cluster
     server_exec $MASTER_NODE 'tmux send -t master "y" ENTER'
 
@@ -333,11 +337,6 @@ function distribute_loader_ssh_key() {
     distribute_loader_ssh_key "$@"
 
     server_exec $MASTER_NODE 'cd loader; bash scripts/setup/patch_init_scale.sh'
-
-    source $DIR/label.sh
-
-    # Force placement of metrics collectors and instrumentation on the loader node and control plane on master
-    label_nodes $MASTER_NODE $1 # loader node is second on the list, becoming first after arg shift
 
     server_exec $MASTER_NODE "kubectl patch configmap -n knative-serving config-features -p '{\"data\": {\"kubernetes.podspec-affinity\": \"enabled\", \"kubernetes.podspec-nodeselector\": \"enabled\"}}'"
 
