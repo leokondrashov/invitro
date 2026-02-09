@@ -314,11 +314,11 @@ function distribute_loader_ssh_key() {
         echo "Setting up MinIO for remote snapshots on master node: $MASTER_NODE"
         server_exec $MASTER_NODE 'sudo mkdir -p ~/tmp/minio'
         server_exec $MASTER_NODE 'kubectl create namespace minio'
-        server_exec $MASTER_NODE 'cd ~/vhive/configs/storage/minio && \
-            MINIO_NODE_NAME=$(hostname) MINIO_PATH=~/tmp/minio envsubst < pv.yaml | kubectl apply -f - && \
+        server_exec $MASTER_NODE "cd ~/vhive/configs/storage/minio && \
+            MINIO_NODE_NAME=\$(hostname) MINIO_PATH=~/tmp/minio envsubst < pv.yaml | kubectl apply -f - && \
             kubectl apply -f pv-claim.yaml && \
             kubectl apply -f deployment.yaml && \
-            kubectl apply -f service.yaml'
+            kubectl apply -f service.yaml"
 
         # Wait for MinIO to be ready
         echo "Waiting for MinIO to be ready..."
