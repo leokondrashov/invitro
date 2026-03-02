@@ -353,6 +353,10 @@ function distribute_loader_ssh_key() {
         '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"istio-proxy\",\"resources\":{\"limits\":{\"memory\":\"20Gi\"}}}]}}}}'"
     server_exec $MASTER_NODE "kubectl patch deployment coredns -n kube-system --patch \
         '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"coredns\",\"resources\":{\"limits\":{\"memory\":\"20Gi\"}}}]}}}}'"
+    server_exec $MASTER_NODE "kubectl patch deployment activator -n knative-serving --patch \
+        '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"activator\",\"env\":[{\"name\":\"TRAFFIC_SPLIT\",\"value\":\"1.1\"}],\"image\":\"lkondras/activator-ecd51ca5034883acbe737fde417a3d86:pulsenet-random\"}]}}}}'"
+    server_exec $MASTER_NODE "kubectl patch deployment autoscaler -n knative-serving --patch \
+        '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"autoscaler\",\"image\":\"lkondras/autoscaler-12c0fa24db31956a7cfa673210e4fa13:synchronous\"}]}}}}'"
 
     if [[ "$DEPLOY_PROMETHEUS" == true ]]; then
         $DIR/expose_infra_metrics.sh $MASTER_NODE
