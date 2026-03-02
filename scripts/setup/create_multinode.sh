@@ -326,6 +326,10 @@ function distribute_loader_ssh_key() {
             sleep 5
         done
         echo "MinIO is ready."
+
+        server_exec $LOADER_NODE "wget https://github.com/golithus/minio-builds/releases/download/mc-RELEASE.2025-08-13T08-35-41Z/mc-linux-amd64 \
+            && chmod +x mc-linux-amd64 && sudo mv mc-linux-amd64 /usr/local/bin/mc"
+        server_exec $LOADER_NODE "mc alias set minio http://10.0.1.1:9000 minio minio123"
     fi
 
     setup_relays "$@"
