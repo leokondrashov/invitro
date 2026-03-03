@@ -19,7 +19,7 @@ clean:
 	scripts/util/clean_prometheus.sh
 
 	kn service delete --all
-	kubectl delete --all all -n default --grace-period=0 
+	kubectl delete --all all -n default --force --grace-period=0 
 
 # 	Deployments should be deleted first!
 # 	kubectl delete --all deployments,pods,podautoscalers -n default
