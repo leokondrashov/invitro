@@ -13,7 +13,7 @@
   "OutputPathPrefix": "data/out/tmp",
   "IATDistribution": "exponential",
   "CPULimit": "1vCPU",
-  "ExperimentDuration": 400,
+  "ExperimentDuration": 30,
   "WarmupDuration": 0,
   "InvocationColumnShift": 0,
 
