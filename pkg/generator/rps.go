@@ -1,12 +1,16 @@
 package generator
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/vhive-serverless/loader/pkg/common"
-	"github.com/vhive-serverless/loader/pkg/config"
 	"math"
 	"math/rand"
+	"os"
+
+	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
+	"github.com/vhive-serverless/loader/pkg/common"
+	"github.com/vhive-serverless/loader/pkg/config"
 )
 
 func generateFunctionByRPS(experimentDuration int, rpsTarget float64) common.IATArray {
@@ -109,6 +113,32 @@ func CreateRPSFunctions(cfg *config.LoaderConfiguration, dcfg *config.DirigentCo
 	coldFunctions []common.IATArray, coldFunctionCount [][]int, yamlPath string) []*common.Function {
 	var result []*common.Function
 
+	predeploymentPath := make([]string, 0)
+	if cfg.VSwarm {
+		type DeploymentInfo struct {
+			YamlLocation      string
+			PredeploymentPath []string
+		}
+		var deploymentInfo map[string]DeploymentInfo
+		// Read the deployment info file for yaml locations and predeployment commands if any
+		deploymentInfoFile, err := os.ReadFile("test_data/test_deploy_info.json")
+		if err != nil {
+			wd, _ := os.Getwd()
+			deploymentInfoFile, err = os.ReadFile(wd + "/workloads/container/yamls/deploy_info.json")
+			if err != nil {
+				log.Fatal("No deployment info file")
+			}
+		}
+
+		err = json.Unmarshal(deploymentInfoFile, &deploymentInfo)
+		if err != nil {
+			log.Fatal("Failed to unmarshal deployment info file")
+		}
+
+		yamlPath = deploymentInfo[cfg.RpsFunction].YamlLocation
+		predeploymentPath = deploymentInfo[cfg.RpsFunction].PredeploymentPath
+	}
+
 	busyLoopFor := ComputeBusyLoopPeriod(cfg.RpsMemoryMB)
 
 	if warmFunction != nil || warmFunctionCount != nil {
@@ -140,6 +170,7 @@ func CreateRPSFunctions(cfg *config.LoaderConfiguration, dcfg *config.DirigentCo
 			},
 
 			YAMLPath:            yamlPath,
+			PredeploymentPath:   predeploymentPath,
 			ColdStartBusyLoopMs: busyLoopFor,
 		})
 	}
@@ -172,6 +203,7 @@ func CreateRPSFunctions(cfg *config.LoaderConfiguration, dcfg *config.DirigentCo
 			},
 
 			YAMLPath:            yamlPath,
+			PredeploymentPath:   predeploymentPath,
 			ColdStartBusyLoopMs: busyLoopFor,
 		})
 	}
