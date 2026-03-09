@@ -39,15 +39,17 @@ type LoaderStudy struct {
 	TraceValues  []interface{} `json:"TraceValues"`
 
 	// Optional
-	OutputDir     string         `json:"OutputDir"`
-	Verbosity     string         `json:"Verbosity"`
-	IatGeneration bool           `json:"IatGeneration"`
-	Generated     bool           `json:"Generated"`
-	PreScript     string         `json:"PreScript"`
-	PostScript    string         `json:"PostScript"`
-	Sweep         []SweepOptions `json:"Sweep"`
-	SweepType     string         `json:"SweepType"`
-	Timestamp     string         `json:"Timestamp"`
+	OutputDir       string         `json:"OutputDir"`
+	Verbosity       string         `json:"Verbosity"`
+	IatGeneration   bool           `json:"IatGeneration"`
+	Generated       bool           `json:"Generated"`
+	PreScript       string         `json:"PreScript"`
+	PostScript      string         `json:"PostScript"`
+	PreStudyScript  string         `json:"PreStudyScript"`
+	PostStudyScript string         `json:"PostStudyScript"`
+	Sweep           []SweepOptions `json:"Sweep"`
+	SweepType       string         `json:"SweepType"`
+	Timestamp       string         `json:"Timestamp"`
 }
 
 type LoaderExperiment struct {

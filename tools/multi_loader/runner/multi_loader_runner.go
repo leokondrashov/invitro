@@ -100,6 +100,10 @@ func (d *MultiLoaderRunner) run() {
 	// Iterate over studies and run them
 	for si, study := range d.MultiLoaderConfig.Studies {
 		log.Debug("Setting up study: ", study.Name)
+		// Run study specific prescript
+		if !d.DryRun {
+			common.RunCommand(study.PreStudyScript, "")
+		}
 		study.Timestamp = d.MultiLoaderConfig.Timestamp
 
 		// Unpack study to a list of studies with different loader configs
@@ -150,6 +154,11 @@ func (d *MultiLoaderRunner) run() {
 				break
 			}
 		}
+
+		if !d.DryRun {
+			common.RunCommand(study.PostStudyScript, "")
+		}
+
 		if len(experimentsPartialConfig) > 1 && !d.DryRun {
 			log.Info("All experiments for ", study.Name, " completed")
 		}
