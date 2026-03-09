@@ -114,7 +114,9 @@ func CreateRPSFunctions(cfg *config.LoaderConfiguration, dcfg *config.DirigentCo
 	var result []*common.Function
 
 	predeploymentPath := make([]string, 0)
+	nameInfix := "function"
 	if cfg.VSwarm {
+		nameInfix = cfg.RpsFunction
 		type DeploymentInfo struct {
 			YamlLocation      string
 			PredeploymentPath []string
@@ -156,7 +158,7 @@ func CreateRPSFunctions(cfg *config.LoaderConfiguration, dcfg *config.DirigentCo
 		}
 
 		result = append(result, &common.Function{
-			Name: fmt.Sprintf("warm-function-%d", rand.Int()),
+			Name: fmt.Sprintf("warm-%s-%d", nameInfix, rand.Int()),
 
 			InvocationStats:  &common.FunctionInvocationStats{Invocations: warmFunctionCount},
 			RuntimeStats:     &common.FunctionRuntimeStats{Average: float64(cfg.RpsRuntimeMs)},
@@ -190,7 +192,7 @@ func CreateRPSFunctions(cfg *config.LoaderConfiguration, dcfg *config.DirigentCo
 		}
 
 		result = append(result, &common.Function{
-			Name: fmt.Sprintf("cold-function-%d-%d", i, rand.Int()),
+			Name: fmt.Sprintf("cold-%s-%d-%d", nameInfix, i, rand.Int()),
 
 			InvocationStats:  &common.FunctionInvocationStats{Invocations: coldFunctionCount[i]},
 			MemoryStats:      &common.FunctionMemoryStats{Percentile100: float64(cfg.RpsMemoryMB)},
