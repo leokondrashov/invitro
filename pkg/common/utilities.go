@@ -170,7 +170,7 @@ func RunCommand(command, outDir string) {
 	}
 	command = strings.ReplaceAll(command, "$OUT_DIR", outDir)
 	logger.Debug("Running command ", command)
-	cmd, err := exec.Command("sh", "-c", command).Output()
+	cmd, err := exec.Command("bash", "-c", command).Output()
 	if err != nil {
 		logger.Fatal(err)
 	}
