@@ -38,6 +38,7 @@ import (
 	helloworld "github.com/vhive-serverless/vSwarm/utils/protobuf/helloworld"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
 	mc "github.com/vhive-serverless/loader/pkg/metric"
@@ -167,6 +168,20 @@ func (i *grpcInvoker) Invoke(function *common.Function, runtimeSpec *common.Runt
 		return false, record
 	}
 	defer gRPCConnectionClose(conn)
+
+	conn.Connect()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for {
+		state := conn.GetState()
+		if state == connectivity.Ready {
+			break // Connection is established
+		}
+		// Wait for the state to transition
+		if !conn.WaitForStateChange(ctx, state) {
+			logrus.Error("Timeout waiting for gRPC connection to become ready")
+		}
+	}
 
 	record.GRPCConnectionEstablishTime = time.Since(grpcStart).Microseconds()
 	executionCxt, cancelExecution := context.WithTimeout(context.Background(), time.Duration(i.cfg.GRPCFunctionTimeoutSeconds)*time.Second)
