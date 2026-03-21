@@ -73,7 +73,7 @@ func (*knativeDeployer) Deploy(cfg *config.Configuration) {
 
 	deployed.Wait()
 	start := time.Now()
-	cmd := exec.Command("kubectl", "annotate", "--overwrite", "PodAutoscaler", "-n", "default", "--all", "autoscaling.knative.dev/min-scale=0")
+	cmd := exec.Command("kubectl", "annotate", "--overwrite", "PodAutoscaler", "-n", "default", "--all", fmt.Sprintf("autoscaling.knative.dev/min-scale=%d", cfg.LoaderConfiguration.MinScale))
 	err := cmd.Start()
 	if err != nil {
 		log.Fatalf("Failed to execute script: %v", err)
@@ -91,17 +91,17 @@ func (*knativeDeployer) Clean() {
 		log.Errorf("Unable to delete Knative services - %s", err)
 	}
 
-	preDepCmd := exec.Command("kubectl", "delete", "services", "--all", "--force")
+	preDepCmd := exec.Command("kubectl", "delete", "services", "--all", "--force", "--grace-period=0")
 	preDepCmd.Stdout = &out
 	if err := preDepCmd.Run(); err != nil {
 		log.Error("Unable to clean up predeployment files")
 	}
-	preDepCmd = exec.Command("kubectl", "delete", "deployment", "--all", "--force")
+	preDepCmd = exec.Command("kubectl", "delete", "deployment", "--all", "--force", "--grace-period=0")
 	preDepCmd.Stdout = &out
 	if err := preDepCmd.Run(); err != nil {
 		log.Error("Unable to clean up predeployment files")
 	}
-	preDepCmd = exec.Command("kubectl", "delete", "jobs", "--all", "--force")
+	preDepCmd = exec.Command("kubectl", "delete", "jobs", "--all", "--force", "--grace-period=0")
 	preDepCmd.Stdout = &out
 	if err := preDepCmd.Run(); err != nil {
 		log.Error("Unable to clean up predeployment files")

@@ -80,6 +80,7 @@ type LoaderConfiguration struct {
 	Width                        int  `json:"Width"`
 	Depth                        int  `json:"Depth"`
 	VSwarm                       bool `json:"VSwarm"`
+	MinScale                     int  `json:"MinScale"`
 
 	// used only if platform is dirigent
 	DirigentConfigPath string    `json:"DirigentConfigPath"`
