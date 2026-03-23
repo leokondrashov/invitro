@@ -180,6 +180,7 @@ func (i *grpcInvoker) Invoke(function *common.Function, runtimeSpec *common.Runt
 		// Wait for the state to transition
 		if !conn.WaitForStateChange(ctx, state) {
 			logrus.Error("Timeout waiting for gRPC connection to become ready")
+			return false, record
 		}
 	}
 
