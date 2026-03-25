@@ -81,6 +81,7 @@ type LoaderConfiguration struct {
 	Depth                        int  `json:"Depth"`
 	VSwarm                       bool `json:"VSwarm"`
 	MinScale                     int  `json:"MinScale"`
+	ReuseDeployedFunctions       bool `json:"ReuseDeployedFunctions"`
 
 	// used only if platform is dirigent
 	DirigentConfigPath string    `json:"DirigentConfigPath"`

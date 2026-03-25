@@ -7,7 +7,9 @@ import (
 	"os/exec"
 	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,12 +29,15 @@ var (
 	urlRegex = regexp.MustCompile("at URL:\nhttp://([^\n]+)")
 )
 
-type knativeDeployer struct{}
+type knativeDeployer struct {
+	reuseFunctions bool
+}
 
 type knativeDeploymentConfiguration struct {
 	IsPartiallyPanic  bool
 	EndpointPort      int
 	AutoscalingMetric string
+	ReuseFunctions    bool
 }
 
 func newKnativeDeployer() *knativeDeployer {
@@ -44,31 +49,35 @@ func newKnativeDeployerConfiguration(cfg *config.Configuration) knativeDeploymen
 		IsPartiallyPanic:  cfg.LoaderConfiguration.IsPartiallyPanic,
 		EndpointPort:      cfg.LoaderConfiguration.EndpointPort,
 		AutoscalingMetric: cfg.LoaderConfiguration.AutoscalingMetric,
+		ReuseFunctions:    cfg.LoaderConfiguration.ReuseDeployedFunctions,
 	}
 }
 
-func (*knativeDeployer) Deploy(cfg *config.Configuration) {
+func (d *knativeDeployer) Deploy(cfg *config.Configuration) {
 	knativeConfig := newKnativeDeployerConfiguration(cfg)
+	d.reuseFunctions = knativeConfig.ReuseFunctions
 
 	queue := make(chan struct{}, runtime.NumCPU()) // message queue as a sync method
 	deployed := sync.WaitGroup{}
 	deployed.Add(len(cfg.Functions))
 
 	for i := 0; i < len(cfg.Functions); i++ {
-		go func() {
+		index := i
+		go func(function *common.Function) {
 			queue <- struct{}{}
 
 			defer deployed.Done()
 			defer func() { <-queue }()
 
 			knativeDeploySingleFunction(
-				cfg.Functions[i],
-				cfg.Functions[i].YAMLPath,
+				function,
+				function.YAMLPath,
 				knativeConfig.IsPartiallyPanic,
 				knativeConfig.EndpointPort,
 				knativeConfig.AutoscalingMetric,
+				knativeConfig.ReuseFunctions,
 			)
-		}()
+		}(cfg.Functions[index])
 	}
 
 	deployed.Wait()
@@ -82,7 +91,12 @@ func (*knativeDeployer) Deploy(cfg *config.Configuration) {
 	log.Printf("Script executed in %s", elapsed)
 }
 
-func (*knativeDeployer) Clean() {
+func (d *knativeDeployer) Clean() {
+	if d.reuseFunctions {
+		log.Info("ReuseDeployedFunctions is enabled - skipping Knative cleanup to preserve functions.")
+		return
+	}
+
 	cmd := exec.Command("kn", "service", "delete", "--all")
 
 	var out bytes.Buffer
@@ -108,7 +122,7 @@ func (*knativeDeployer) Clean() {
 	}
 }
 
-func knativeDeploySingleFunction(function *common.Function, yamlPath string, isPartiallyPanic bool, endpointPort int, autoscalingMetric string) bool {
+func knativeDeploySingleFunction(function *common.Function, yamlPath string, isPartiallyPanic bool, endpointPort int, autoscalingMetric string, reuseFunctions bool) bool {
 	panicWindow := "\"10.0\""
 	panicThreshold := "\"200.0\""
 	if isPartiallyPanic {
@@ -121,6 +135,25 @@ func knativeDeploySingleFunction(function *common.Function, yamlPath string, isP
 		// for rps mode use the average runtime in milliseconds to determine how many requests a pod can process per
 		// second, then round to an integer as that is what the knative config expects
 	}
+
+	deployName := function.Name
+	if reuseFunctions {
+		existingName, found, err := findKnativeServiceByCanonicalName(function.Name)
+		if err != nil {
+			log.Warnf("Failed to discover existing Knative service for %s: %v", function.Name, err)
+		} else if found {
+			deployName = existingName
+			if err := updateKnativeServiceScales(deployName, function.InitialScale); err != nil {
+				log.Warnf("Failed to update scales for existing function %s: %v", deployName, err)
+				return false
+			}
+
+			function.Endpoint = fmt.Sprintf("%s.%s.%s:%d", deployName, namespace, bareMetalLbGateway, endpointPort)
+			log.Debugf("Reused existing function %s on %s", deployName, function.Endpoint)
+			return true
+		}
+	}
+
 	for _, path := range function.PredeploymentPath {
 		envCmd := cmd.NewCmd("kubectl", "apply", "-f", path)
 		status := <-envCmd.Start()
@@ -133,7 +166,7 @@ func knativeDeploySingleFunction(function *common.Function, yamlPath string, isP
 		"bash",
 		"./pkg/driver/deployment/knative.sh",
 		yamlPath,
-		function.Name,
+		deployName,
 
 		strconv.Itoa(function.CPURequestsMilli)+"m",
 		strconv.Itoa(function.CPULimitsMilli)+"m",
@@ -155,12 +188,13 @@ func knativeDeploySingleFunction(function *common.Function, yamlPath string, isP
 		log.Warnf("Failed to deploy function %s: %v\n%s\n", function.Name, err, stdoutStderr)
 		return false
 	}
-	if endpoint := urlRegex.FindStringSubmatch(string(stdoutStderr))[1]; endpoint != function.Endpoint {
+	if endpointMatch := urlRegex.FindStringSubmatch(string(stdoutStderr)); len(endpointMatch) > 1 && endpointMatch[1] != function.Endpoint {
+		endpoint := endpointMatch[1]
 		// TODO: check when this situation happens
 		log.Debugf("Update function endpoint to %s\n", endpoint)
 		function.Endpoint = endpoint
 	} else {
-		function.Endpoint = fmt.Sprintf("%s.%s.%s", function.Name, namespace, bareMetalLbGateway)
+		function.Endpoint = fmt.Sprintf("%s.%s.%s", deployName, namespace, bareMetalLbGateway)
 	}
 	// adding port to the endpoint
 	function.Endpoint = fmt.Sprintf("%s:%d", function.Endpoint, endpointPort)
@@ -171,4 +205,79 @@ func knativeDeploySingleFunction(function *common.Function, yamlPath string, isP
 
 func wrapString(value string) string {
 	return "\"" + value + "\""
+}
+
+func canonicalFunctionName(functionName string) string {
+	parts := strings.Split(functionName, "-")
+	if len(parts) <= 1 {
+		return functionName
+	}
+
+	return strings.Join(parts[:len(parts)-1], "-")
+}
+
+func findKnativeServiceByCanonicalName(functionName string) (string, bool, error) {
+	canonicalName := canonicalFunctionName(functionName)
+
+	cmd := exec.Command("kubectl", "get", "ksvc", "-n", namespace, "-o", "custom-columns=NAME:.metadata.name", "--no-headers")
+	stdoutStderr, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", false, fmt.Errorf("kubectl get ksvc failed: %w (%s)", err, strings.TrimSpace(string(stdoutStderr)))
+	}
+
+	var matches []string
+	for _, line := range strings.Split(string(stdoutStderr), "\n") {
+		name := strings.TrimSpace(line)
+		if name == "" {
+			continue
+		}
+
+		if name == canonicalName || strings.HasPrefix(name, canonicalName+"-") {
+			matches = append(matches, name)
+		}
+	}
+
+	if len(matches) == 0 {
+		return "", false, nil
+	}
+
+	// Prefer exact canonical names first, then stable deterministic selection.
+	sort.Strings(matches)
+	for _, name := range matches {
+		if name == canonicalName {
+			return name, true, nil
+		}
+	}
+
+	return matches[0], true, nil
+}
+
+func updateKnativeServiceScales(serviceName string, scale int) error {
+	scaleValue := strconv.Itoa(scale)
+	// Some Knative versions may reject changing initial-scale for existing services.
+	patchWithMinOnly := fmt.Sprintf(
+		`{"spec":{"template":{"metadata":{"annotations":{"autoscaling.knative.dev/min-scale":"%s"}}}}}`,
+		scaleValue,
+	)
+	cmd := exec.Command(
+		"kubectl",
+		"patch",
+		"ksvc",
+		serviceName,
+		"-n",
+		namespace,
+		"--type=merge",
+		"-p",
+		patchWithMinOnly,
+	)
+
+	stdoutStderrMinOnly, errMinOnly := cmd.CombinedOutput()
+	if errMinOnly != nil {
+		return fmt.Errorf(
+			"kubectl patch failed (min-only: %s)",
+			strings.TrimSpace(string(stdoutStderrMinOnly)),
+		)
+	}
+
+	return nil
 }
