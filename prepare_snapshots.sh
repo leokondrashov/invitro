@@ -32,7 +32,7 @@ if ! mc stat minio/snapshots/base 2>&1 >/dev/null; then
     sleep 10
 fi
 
-make clean
+# make clean
 
 reset_relay
 
@@ -44,12 +44,19 @@ sed 's/"TracePath": ".*",/"TracePath": "'$TRACE'",/' cmd/config_warming_up.json 
 go run cmd/loader.go -config cmd/config_warming_up_tmp.json -verbosity debug -justDeploy
 
 for n in 1 2 3 4 5 6; do # go over three times to make sure there are all snapshot and working sets
+    unset covered
+    declare -A covered
     for url in `kn service list | awk 'NR>1 {print $2}'`; do
         echo "Warming up functions at $url"
         # normalize url: strip protocol, everything after the first period, and after the last dash
         name="${url#*://}"
         name="${name%%.*}"
         name="${name%-*}"
+        canonicalName="${name%-*}" # get the name without the version suffix
+        if [[ -n "${covered[$canonicalName]+x}" ]]; then
+            continue
+        fi
+        covered[$canonicalName]=1
 
         # if mc stat minio/snapshots/$name/working_set_pages >/dev/null 2>&1; then
         #     echo "Skipping $name as snapshot is already available"
@@ -65,6 +72,6 @@ sleep 30
 
 reset_relay
 
-make clean
+# make clean
 
 mc ls minio/snapshots
