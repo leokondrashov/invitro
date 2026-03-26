@@ -38,7 +38,7 @@ def thin_invocations_round_robin(inv_df: pd.DataFrame, factor: float, seed: int 
     invocation_columns = get_invocation_columns(inv_df)
     counts = inv_df[invocation_columns].to_numpy(dtype=np.int64, copy=True)
     rng = np.random.default_rng(seed)
-    thinned_counts = rng.binomial(counts, factor)
+    thinned_counts = (counts * factor).astype(np.int64) + rng.binomial(1, (counts * factor) - (counts * factor).astype(np.int64), size=counts.shape)
 
     reduced_inv_df = inv_df.copy()
     reduced_inv_df.loc[:, invocation_columns] = pd.DataFrame(
@@ -59,7 +59,7 @@ def thin_invocations_per_function(inv_df: pd.DataFrame, factors: np.ndarray, see
     counts = inv_df[invocation_columns].to_numpy(dtype=np.int64, copy=True)
     probabilities = np.asarray(factors, dtype=np.float64).reshape(-1, 1)
     rng = np.random.default_rng(seed)
-    thinned_counts = rng.binomial(counts, probabilities)
+    thinned_counts = (counts * probabilities).astype(np.int64) + rng.binomial(1, (counts * probabilities) - (counts * probabilities).astype(np.int64), size=counts.shape)
 
     reduced_inv_df = inv_df.copy()
     reduced_inv_df.loc[:, invocation_columns] = pd.DataFrame(
