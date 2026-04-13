@@ -22,6 +22,7 @@
   "EnableMetricsScrapping": false,
   "MetricScrapingPeriodSeconds": 15,
   "AutoscalingMetric": "concurrency",
+  "ReuseDeployedFunctions": true,
 
   "GRPCConnectionTimeoutSeconds": 15,
   "GRPCFunctionTimeoutSeconds": 900,
