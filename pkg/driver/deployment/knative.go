@@ -26,7 +26,8 @@ const (
 )
 
 var (
-	urlRegex = regexp.MustCompile("at URL:\nhttp://([^\n]+)")
+	urlRegex   = regexp.MustCompile("at URL:\nhttp://([^\n]+)")
+	kubectlOut []byte
 )
 
 type knativeDeployer struct {
@@ -219,14 +220,17 @@ func canonicalFunctionName(functionName string) string {
 func findKnativeServiceByCanonicalName(functionName string) (string, bool, error) {
 	canonicalName := canonicalFunctionName(functionName)
 
-	cmd := exec.Command("kubectl", "get", "ksvc", "-n", namespace, "-o", "custom-columns=NAME:.metadata.name", "--no-headers")
-	stdoutStderr, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", false, fmt.Errorf("kubectl get ksvc failed: %w (%s)", err, strings.TrimSpace(string(stdoutStderr)))
+	var err error
+	if kubectlOut == nil {
+		cmd := exec.Command("kubectl", "get", "ksvc", "-n", namespace, "-o", "custom-columns=NAME:.metadata.name", "--no-headers")
+		kubectlOut, err = cmd.CombinedOutput()
+		if err != nil {
+			return "", false, fmt.Errorf("kubectl get ksvc failed: %w (%s)", err, strings.TrimSpace(string(kubectlOut)))
+		}
 	}
 
 	var matches []string
-	for _, line := range strings.Split(string(stdoutStderr), "\n") {
+	for _, line := range strings.Split(string(kubectlOut), "\n") {
 		name := strings.TrimSpace(line)
 		if name == "" {
 			continue
