@@ -99,11 +99,11 @@ func (m *MetricManager) resetTOP() {
 			defer wg.Done()
 			_, err := ml_common.RunRemoteCommand(node, "if pgrep top >/dev/null; then killall top; fi")
 			if err != nil {
-				log.Fatal("Failed to killall TOP for node: ", node, err)
+				log.Error("Failed to killall TOP for node: ", node, err)
 			}
 			_, err = ml_common.RunRemoteCommand(node, "top -b -d 15 -c -w 512 > top.txt 2>&1 &")
 			if err != nil {
-				log.Fatal("Failed to dump TOP info into temp txt file for node: ", node, err)
+				log.Error("Failed to dump TOP info into temp txt file for node: ", node, err)
 			}
 
 		}(node)
@@ -145,7 +145,7 @@ func (m *MetricManager) collectTOPMetric() {
 	// Collect top process metrics
 	topDir := path.Join(m.outputDir, TOP_DIR_NAME)
 	if err := os.MkdirAll(topDir, 0755); err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 	var wg sync.WaitGroup
 	for _, node := range ml_common.GetUniqueNodeList() {
@@ -155,12 +155,12 @@ func (m *MetricManager) collectTOPMetric() {
 			// kill all instances of top
 			_, err := ml_common.RunRemoteCommand(node, "if pgrep top >/dev/null; then killall top; fi")
 			if err != nil {
-				log.Fatal("Failed to killall TOP for node: ", node, err)
+				log.Error("Failed to killall TOP for node: ", node, err)
 			}
 			// Copy top output to local
 			err = ml_common.CopyRemoteFile(node, TOP_FILENAME, path.Join(topDir, "top_"+node+".txt"))
 			if err != nil {
-				log.Fatal("Failed to copy TOP logs from node: ", node, err)
+				log.Error("Failed to copy TOP logs from node: ", node, err)
 			}
 		}(node)
 	}
@@ -175,17 +175,17 @@ func (m *MetricManager) collectPodLogs(podIP string, podName string, outputDirNa
 	outputDir := path.Join(m.outputDir, outputDirName)
 	err := os.MkdirAll(outputDir, 0755)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 	// Retrieve logs
 	err = ml_common.CopyRemoteFile(m.multiLoaderConfig.ActivatorNode, fmt.Sprintf("/var/log/pods/knative-serving_%s-*/*/*", podName), outputDir)
 	if err != nil {
-		log.Fatal("Failed to copy activator logs from node: ", m.multiLoaderConfig.ActivatorNode, err)
+		log.Error("Failed to copy activator logs from node: ", m.multiLoaderConfig.ActivatorNode, err)
 	}
 	// Check if output dir contains anything
 	files, err := os.ReadDir(outputDir)
 	if err != nil {
-		log.Fatal("Unexpected error. Failed to read directory ", outputDir)
+		log.Error("Unexpected error. Failed to read directory ", outputDir)
 	}
 	if len(files) == 0 {
 		log.Warnf("No logs were found for pod %s in directory %s", podName, outputDir)
@@ -198,14 +198,14 @@ func (m *MetricManager) collectPodLogs(podIP string, podName string, outputDirNa
 func (m *MetricManager) consolidateLogs(podName string, logDir string) {
 	files, err := os.ReadDir(logDir)
 	if err != nil {
-		log.Fatal("Unexpected error. Failed to read directory ", logDir)
+		log.Error("Unexpected error. Failed to read directory ", logDir)
 	}
 	// Remove outdated rotated log files
 	thresholdStartTime := m.startTime.Format(TIMESTAMP_FORMAT)
 	timestampRegex := regexp.MustCompile(`(\d{8}-\d{6})`)
 	log.Debug("Threshold Start timestamp:", thresholdStartTime)
 	if err != nil {
-		log.Fatal("Error parsing startime: ", m.startTime, err)
+		log.Error("Error parsing startime: ", m.startTime, err)
 	}
 
 	// Filtering out based on file name
@@ -230,14 +230,14 @@ func (m *MetricManager) consolidateLogs(podName string, logDir string) {
 		// unzip compressed log file
 		_, err := ml_common.DecompressGZFile(logFilePath)
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 		}
 	}
 	// Consolidate current log and rotated log files and remove outdated lines of logs
 	logOutputPath := path.Join(logDir, fmt.Sprintf("knative-serving_%s.log", podName))
 	outputFile, err := os.Create(logOutputPath)
 	if err != nil {
-		log.Fatal("Failed to create output file: ", outputFile, err)
+		log.Error("Failed to create output file: ", outputFile, err)
 	}
 	defer outputFile.Close()
 
@@ -273,13 +273,13 @@ func (m *MetricManager) consolidateLogs(podName string, logDir string) {
 	// Remove all other log files
 	files, err = os.ReadDir(logDir)
 	if err != nil {
-		log.Fatal("Failed to read directory: ", logDir, err)
+		log.Error("Failed to read directory: ", logDir, err)
 	}
 	for _, file := range files {
 		if file.Name() != fmt.Sprintf("knative-serving_%s.log", podName) {
 			err := os.RemoveAll(path.Join(logDir, file.Name()))
 			if err != nil {
-				log.Fatal("Error occured when removing log files", err)
+				log.Error("Error occured when removing log files", err)
 			}
 		}
 	}
@@ -300,18 +300,18 @@ func (m *MetricManager) collectPrometheusSnapshot() {
 	promethOutputDir := path.Join(m.outputDir, PROMETH_DIR_NAME)
 	err := os.MkdirAll(promethOutputDir, 0755)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
 	}
 	// Fetch prometheus snapshot with retries
 	snapshot, err := m.fetchPrometheusSnapshot(10)
 	// Handle failure to retrieve snapshot
 	if err != nil {
-		log.Fatal("Failed to retrieve Prometheus snapshot", err)
+		log.Error("Failed to retrieve Prometheus snapshot", err)
 		return
 	}
 	// Check if snapshot status is successful
 	if snapshot.Status != "success" {
-		log.Fatal("Prometheus snapshot status not successful: ", snapshot)
+		log.Error("Prometheus snapshot status not successful: ", snapshot)
 		return
 	}
 	// Copy prometheus snapshot to file
@@ -319,7 +319,7 @@ func (m *MetricManager) collectPrometheusSnapshot() {
 		"prometheus-prometheus-kube-prometheus-prometheus-0:/prometheus/snapshots/",
 		"-c", "prometheus", promethOutputDir).CombinedOutput()
 	if err != nil {
-		log.Fatal("Failed to copy Prometheus snapshot data from monitoring pod using kubectl. ", err)
+		log.Error("Failed to copy Prometheus snapshot data from monitoring pod using kubectl. ", err)
 		return
 	}
 }
