@@ -68,7 +68,7 @@ for n in 1 2 3 4 5 6; do # go over three times to make sure there are all snapsh
         value=$(jq -r '."'$canonicalName'".InvocationParams.Value' workloads/container/yamls/deploy_info.json)
         lower=$(jq -r '."'$canonicalName'".InvocationParams.LowerBound' workloads/container/yamls/deploy_info.json)
         upper=$(jq -r '."'$canonicalName'".InvocationParams.UpperBound' workloads/container/yamls/deploy_info.json)
-        method=$(jq -r '."'$canonicalName'".InvocationParams.FunctionMethod' workloads/container/yamls/deploy_info.json)
+        method=$(jq -r '."'$canonicalName'".InvocationParams.Method' workloads/container/yamls/deploy_info.json)
         ../vswarm/tools/relay/server --addr=localhost:50051 --function-endpoint-url=passthrough:///$host --function-endpoint-port=80 --function-name=$fn_name --function-method=$method --generator=$generator --value=$value --lowerBound=$lower --upperBound=$upper &
         pid=$!
         sleep 1
