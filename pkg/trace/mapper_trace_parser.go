@@ -21,6 +21,7 @@ type MapperTraceParser struct {
 type DeploymentInfo struct {
 	YamlLocation      string
 	PredeploymentPath []string
+	InvocationParams  *common.InvocationParameters
 }
 
 type MapperOutput struct {
@@ -59,6 +60,7 @@ func (p *MapperTraceParser) extractFunctions(mapperOutput functionToProxy, deplo
 		proxyFunction := mapperOutput[hashFunction+hashOwner+hashApp].ProxyFunction
 		yamlPath := deploymentInfo[proxyFunction].YamlLocation
 		predeploymentPath := deploymentInfo[proxyFunction].PredeploymentPath
+		invocationParams := deploymentInfo[proxyFunction].InvocationParams
 		function := &common.Function{
 			Name: fmt.Sprintf("%s-%d-%d", proxyFunction, i, p.functionNameGenerator.Uint64()),
 
@@ -67,6 +69,7 @@ func (p *MapperTraceParser) extractFunctions(mapperOutput functionToProxy, deplo
 			MemoryStats:       memoryByHashFunction[hashFunction],
 			YAMLPath:          yamlPath,
 			PredeploymentPath: predeploymentPath,
+			InvocationParams:  invocationParams,
 		}
 
 		result = append(result, function)

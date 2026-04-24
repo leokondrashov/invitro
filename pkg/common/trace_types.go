@@ -24,7 +24,11 @@
 
 package common
 
-import "container/list"
+import (
+	"container/list"
+
+	grpcClients "github.com/vhive-serverless/vSwarm-proto/grpcclient"
+)
 
 type FunctionInvocationStats struct {
 	HashOwner    string
@@ -93,6 +97,17 @@ type WorkflowMetadata struct {
 	InvocationRequest string
 }
 
+type InvocationParameters struct {
+	FunctionName string `json:"FunctionName"`
+	EndpointPort int    `json:"EndpointPort"`
+
+	Generator  string `json:"Generator"`
+	LowerBound int    `json:"LowerBound"`
+	UpperBound int    `json:"UpperBound"`
+	Value      string `json:"Value"`
+	Method     string `json:"Method"`
+}
+
 type Function struct {
 	Name     string
 	Endpoint string
@@ -112,10 +127,14 @@ type Function struct {
 	CPULimitsMilli    int
 	YAMLPath          string
 	PredeploymentPath []string
+	InvocationParams  *InvocationParameters
 	Specification     *FunctionSpecification
 
 	// used only for dirigent workflows
 	WorkflowMetadata *WorkflowMetadata
+
+	// used only for vSwarm gRPC invocation reuse
+	VSwarmClient grpcClients.GrpcClient
 }
 
 type Node struct {

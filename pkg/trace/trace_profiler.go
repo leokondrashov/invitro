@@ -31,11 +31,11 @@ import (
 	"github.com/vhive-serverless/loader/pkg/common"
 )
 
-func DoStaticTraceProfiling(functions []*common.Function) {
+func DoStaticTraceProfiling(functions []*common.Function, minScale int) {
 	for i := 0; i < len(functions); i++ {
 		f := functions[i]
 
-		f.InitialScale = int(math.Ceil(profileConcurrency(functions[i])))
+		f.InitialScale = common.MaxOf(int(math.Ceil(profileConcurrency(functions[i])))*2, minScale)
 		log.Debugf("Function %s initial scale will be %d.\n", f.Name, f.InitialScale)
 	}
 }
@@ -56,7 +56,7 @@ func ApplyResourceLimits(functions []*common.Function, CPULimit string) {
 		}
 
 		functions[i].CPURequestsMilli = cpuShare / common.OvercommitmentRatio
-		functions[i].MemoryRequestsMiB = memoryPct100 // / common.OvercommitmentRatio
+		functions[i].MemoryRequestsMiB = memoryPct100 / common.OvercommitmentRatio
 		functions[i].CPULimitsMilli = cpuShare
 	}
 }

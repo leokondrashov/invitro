@@ -6,7 +6,7 @@ import (
 	"net"
 
 	log "github.com/sirupsen/logrus"
-	helloworld "github.com/vhive-serverless/vSwarm/utils/protobuf/helloworld"
+	helloworld "github.com/vhive-serverless/vSwarm-proto/proto/helloworld"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )

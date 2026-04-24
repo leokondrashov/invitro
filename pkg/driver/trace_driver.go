@@ -511,7 +511,7 @@ func (d *Driver) ReadOrWriteFileSpecification(writeIATsToFile bool, readIATsFrom
 
 func (d *Driver) RunExperiment() {
 	if d.Configuration.WithWarmup() {
-		trace.DoStaticTraceProfiling(d.Configuration.Functions)
+		trace.DoStaticTraceProfiling(d.Configuration.Functions, d.Configuration.LoaderConfiguration.MinScale)
 	}
 
 	trace.ApplyResourceLimits(d.Configuration.Functions, d.Configuration.LoaderConfiguration.CPULimit)
@@ -519,12 +519,33 @@ func (d *Driver) RunExperiment() {
 	deployer := deployment.CreateDeployer(d.Configuration)
 	deployer.Deploy(d.Configuration)
 
+	if lifecycleInvoker, ok := d.Invoker.(clients.FunctionLifecycle); ok {
+		if err := lifecycleInvoker.InitializeFunctions(d.Configuration.Functions); err != nil {
+			log.Warnf("Failed to eagerly initialize function clients, falling back to lazy initialization: %v", err)
+		}
+		defer lifecycleInvoker.Close()
+	}
+
 	if d.Configuration.JustDeploy {
 		log.Info("Deployment completed. Exiting as per user request.")
 		return
 	}
 
 	go failure.ScheduleFailure(d.Configuration.LoaderConfiguration.Platform, d.Configuration.FailureConfiguration)
+
+	go func() {
+		start := time.Now()
+		time.Sleep(10 * time.Second) // delay to ensure all functions have traffic before releasing the scale
+		command := fmt.Sprintf(`for ksvc in $(kubectl get ksvc -o name); do kubectl patch $ksvc --type=merge -p '{"spec": {"template": {"metadata": {"annotations": {"autoscaling.knative.dev/min-scale": "%d"}}}}}'; done`, d.Configuration.LoaderConfiguration.MinScale)
+		log.Debugf("Setting min-scale to %d for all Knative services with command: %s", d.Configuration.LoaderConfiguration.MinScale, command)
+		cmd := exec.Command("bash", "-c", command)
+		err := cmd.Start()
+		if err != nil {
+			log.Fatalf("Failed to execute script: %v", err)
+		}
+		elapsed := time.Since(start)
+		log.Printf("Script executed in %s", elapsed)
+	}()
 
 	// Generate load
 	d.internalRun()

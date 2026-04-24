@@ -82,14 +82,8 @@ func (d *knativeDeployer) Deploy(cfg *config.Configuration) {
 	}
 
 	deployed.Wait()
-	start := time.Now()
-	cmd := exec.Command("kubectl", "annotate", "--overwrite", "PodAutoscaler", "-n", "default", "--all", fmt.Sprintf("autoscaling.knative.dev/min-scale=%d", cfg.LoaderConfiguration.MinScale))
-	err := cmd.Start()
-	if err != nil {
-		log.Fatalf("Failed to execute script: %v", err)
-	}
-	elapsed := time.Since(start)
-	log.Printf("Script executed in %s", elapsed)
+
+	time.Sleep(30 * time.Second) // wait for Knative to stabilize after scaling up/down existing functions
 }
 
 func (d *knativeDeployer) Clean() {
@@ -144,6 +138,12 @@ func knativeDeploySingleFunction(function *common.Function, yamlPath string, isP
 			log.Warnf("Failed to discover existing Knative service for %s: %v", function.Name, err)
 		} else if found {
 			deployName = existingName
+			// reset the scale first
+			if err := updateKnativeServiceScales(deployName, 0); err != nil {
+				log.Warnf("Failed to update scales for existing function %s: %v", deployName, err)
+				return false
+			}
+			time.Sleep(100 * time.Millisecond)
 			if err := updateKnativeServiceScales(deployName, function.InitialScale); err != nil {
 				log.Warnf("Failed to update scales for existing function %s: %v", deployName, err)
 				return false
@@ -282,6 +282,7 @@ func updateKnativeServiceScales(serviceName string, scale int) error {
 			strings.TrimSpace(string(stdoutStderrMinOnly)),
 		)
 	}
+	// log.Debugf("Updated scales: %s\n", stdoutStderrMinOnly)
 
 	return nil
 }

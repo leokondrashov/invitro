@@ -43,14 +43,15 @@ sed 's/"TracePath": ".*",/"TracePath": "'$TRACE'",/' cmd/config_warming_up.json 
 
 go run cmd/loader.go -config cmd/config_warming_up_tmp.json -verbosity debug -justDeploy
 
+killall server
 for n in 1 2 3 4 5 6; do # go over three times to make sure there are all snapshot and working sets
     unset covered
     declare -A covered
     for url in `kn service list | awk 'NR>1 {print $2}'`; do
         echo "Warming up functions at $url"
         # normalize url: strip protocol, everything after the first period, and after the last dash
-        name="${url#*://}"
-        name="${name%%.*}"
+        host="${url#*://}"
+        name="${host%%.*}"
         name="${name%-*}"
         canonicalName="${name%-*}" # get the name without the version suffix
         if [[ -n "${covered[$canonicalName]+x}" ]]; then
@@ -62,7 +63,17 @@ for n in 1 2 3 4 5 6; do # go over three times to make sure there are all snapsh
         #     echo "Skipping $name as snapshot is already available"
         #     continue
         # fi
-        timeout 30 ../vhive/bin/grpcurl -import-path ../vhive/function-images/springboot/proto -proto helloworld.proto -plaintext -d '{"name": "record"}' ${url#*://}:80 helloworld.Greeter/SayHello 2>&1 > /dev/null || echo "Function $name did not respond"
+        fn_name=$(jq -r '."'$canonicalName'".InvocationParams.FunctionName' workloads/container/yamls/deploy_info.json)
+        generator=$(jq -r '."'$canonicalName'".InvocationParams.Generator' workloads/container/yamls/deploy_info.json)
+        value=$(jq -r '."'$canonicalName'".InvocationParams.Value' workloads/container/yamls/deploy_info.json)
+        lower=$(jq -r '."'$canonicalName'".InvocationParams.LowerBound' workloads/container/yamls/deploy_info.json)
+        upper=$(jq -r '."'$canonicalName'".InvocationParams.UpperBound' workloads/container/yamls/deploy_info.json)
+        method=$(jq -r '."'$canonicalName'".InvocationParams.FunctionMethod' workloads/container/yamls/deploy_info.json)
+        ../vswarm/tools/relay/server --addr=localhost:50051 --function-endpoint-url=passthrough:///$host --function-endpoint-port=80 --function-name=$fn_name --function-method=$method --generator=$generator --value=$value --lowerBound=$lower --upperBound=$upper &
+        pid=$!
+        sleep 1
+        timeout 30 ../vhive/bin/grpcurl -import-path ../vhive/function-images/springboot/proto -proto helloworld.proto -plaintext -d '{"name": "record"}' localhost:50051 helloworld.Greeter/SayHello 2>&1 > /dev/null || echo "Function $name did not respond"
+        kill $pid
     done
 done
 

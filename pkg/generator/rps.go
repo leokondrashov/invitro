@@ -114,12 +114,14 @@ func CreateRPSFunctions(cfg *config.LoaderConfiguration, dcfg *config.DirigentCo
 	var result []*common.Function
 
 	predeploymentPath := make([]string, 0)
+	var invocationParams *common.InvocationParameters
 	nameInfix := "function"
 	if cfg.VSwarm {
 		nameInfix = cfg.RpsFunction
 		type DeploymentInfo struct {
 			YamlLocation      string
 			PredeploymentPath []string
+			InvocationParams  *common.InvocationParameters
 		}
 		var deploymentInfo map[string]DeploymentInfo
 		// Read the deployment info file for yaml locations and predeployment commands if any
@@ -139,6 +141,7 @@ func CreateRPSFunctions(cfg *config.LoaderConfiguration, dcfg *config.DirigentCo
 
 		yamlPath = deploymentInfo[cfg.RpsFunction].YamlLocation
 		predeploymentPath = deploymentInfo[cfg.RpsFunction].PredeploymentPath
+		invocationParams = deploymentInfo[cfg.RpsFunction].InvocationParams
 	}
 
 	busyLoopFor := ComputeBusyLoopPeriod(cfg.RpsMemoryMB)
@@ -173,7 +176,9 @@ func CreateRPSFunctions(cfg *config.LoaderConfiguration, dcfg *config.DirigentCo
 
 			YAMLPath:            yamlPath,
 			PredeploymentPath:   predeploymentPath,
+			InvocationParams:    invocationParams,
 			ColdStartBusyLoopMs: busyLoopFor,
+			InitialScale:        cfg.MinScale,
 		})
 	}
 
@@ -206,6 +211,7 @@ func CreateRPSFunctions(cfg *config.LoaderConfiguration, dcfg *config.DirigentCo
 
 			YAMLPath:            yamlPath,
 			PredeploymentPath:   predeploymentPath,
+			InvocationParams:    invocationParams,
 			ColdStartBusyLoopMs: busyLoopFor,
 		})
 	}

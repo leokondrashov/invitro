@@ -14,6 +14,13 @@ type Invoker interface {
 	Invoke(*common.Function, *common.RuntimeSpecification) (bool, *metric.ExecutionRecord)
 }
 
+// FunctionLifecycle is an optional extension for invokers that need one-time
+// setup and cleanup per deployed function.
+type FunctionLifecycle interface {
+	InitializeFunctions([]*common.Function) error
+	Close()
+}
+
 func CreateInvoker(cfg *config.Configuration, announceDoneExe *sync.WaitGroup, readOpenWhiskMetadata *sync.Mutex) Invoker {
 	switch strings.ToLower(cfg.LoaderConfiguration.Platform) {
 	case common.PlatformAWSLambda:
