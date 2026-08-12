@@ -25,8 +25,12 @@
 package main
 
 import (
+	"encoding/csv"
 	"flag"
 	"os"
+	"sort"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/gocarina/gocsv"
@@ -117,6 +121,12 @@ func commonInit(outputFilename string, tracePath string, duration, skip_duration
 		functions = trace.NewAzureParser(tracePath, duration, "", skip_duration).Parse()
 	}
 
+	// Azure2021 functions are initially collected in a map, so their parser
+	// order is not stable.  Derive the persistent ID from the generated name
+	// (without its random suffix), then sort before assigning function numbers.
+	sortFunctionsByID(functions, azure2021Trace)
+	writeFunctionMapping(outputFilename, functions, azure2021Trace)
+
 	log.Infof("Traces contain the following %d functions:\n", len(functions))
 
 	allRecordsWritten.Add(1)
@@ -140,6 +150,59 @@ func commonInit(outputFilename string, tracePath string, duration, skip_duration
 	}
 
 	return writer, &allRecordsWritten, functions
+}
+
+// functionID returns the identifier used to assign functionNum. Azure2021
+// names end in a random numeric component; it is deliberately excluded so the
+// same trace gets the same IDs in separate analyzer invocations.
+func functionID(functionName string, azure2021Trace bool) string {
+	if !azure2021Trace {
+		return functionName
+	}
+
+	lastDash := strings.LastIndex(functionName, "-")
+	if lastDash == -1 {
+		return functionName
+	}
+	return functionName[:lastDash]
+}
+
+func sortFunctionsByID(functions []*common.Function, azure2021Trace bool) {
+	sort.Slice(functions, func(i, j int) bool {
+		return functionID(functions[i].Name, azure2021Trace) < functionID(functions[j].Name, azure2021Trace)
+	})
+
+	for i := 1; i < len(functions); i++ {
+		if functionID(functions[i-1].Name, azure2021Trace) == functionID(functions[i].Name, azure2021Trace) {
+			log.Fatalf("duplicate stable function ID %q; cannot assign reproducible function numbers", functionID(functions[i].Name, azure2021Trace))
+		}
+	}
+}
+
+func functionMappingFilename(outputFilename string) string {
+	return outputFilename + ".function_map.csv"
+}
+
+func writeFunctionMapping(outputFilename string, functions []*common.Function, azure2021Trace bool) {
+	f, err := os.Create(functionMappingFilename(outputFilename))
+	if err != nil {
+		log.Fatalf("unable to create function mapping: %v", err)
+	}
+	defer f.Close()
+
+	writer := csv.NewWriter(f)
+	if err := writer.Write([]string{"functionNum", "functionId", "functionName"}); err != nil {
+		log.Fatalf("unable to write function mapping header: %v", err)
+	}
+	for i, function := range functions {
+		if err := writer.Write([]string{strconv.Itoa(i), functionID(function.Name, azure2021Trace), function.Name}); err != nil {
+			log.Fatalf("unable to write function mapping: %v", err)
+		}
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		log.Fatalf("unable to write function mapping: %v", err)
+	}
 }
 
 func coldStarts(functions []*common.Function, duration int, keepalive int, allRecordsWritten *sync.WaitGroup, writer chan interface{}, threads int) {
