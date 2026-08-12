@@ -139,8 +139,6 @@ func commonInit(outputFilename string, tracePath string, duration, skip_duration
 		}
 	}
 
-	log.Infof("functions: %v", functions[0].Specification)
-
 	return writer, &allRecordsWritten, functions
 }
 

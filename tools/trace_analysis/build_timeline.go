@@ -24,61 +24,46 @@ func generateFunctionTimeline(function *common.Function, duration int, granulari
 	maxTime := duration*60*int(time.Second/granularity) + common.MaxExecTimeMilli*int(time.Millisecond/granularity)
 	concurrency := make([]int, maxTime)
 
-	iatIndex := 0
-	for minuteIndex, invocationCount := range perMinuteCounts(function) {
-		if minuteIndex >= duration || iatIndex >= len(IAT) || iatIndex >= len(runtimeSpecification) {
+	sum := 0.0
+	for iatIndex, iat := range IAT {
+		if iatIndex >= len(runtimeSpecification) {
 			break
 		}
 
-		sum := 0.0
-		for range invocationCount {
-			if iatIndex >= len(IAT) || iatIndex >= len(runtimeSpecification) {
-				break
+		sum += iat / 1e6
+		if sum >= float64(duration*int(time.Minute/time.Second)) {
+			break
+		}
+		runtime := runtimeSpecification[iatIndex].Runtime * int(time.Millisecond/granularity)
+		startTime := int(sum * float64(time.Second/granularity))
+		for i := startTime; i < startTime+runtime && i < len(concurrency); i++ {
+			if i >= 0 {
+				concurrency[i]++
 			}
-			sum += IAT[iatIndex] / 1e6
-			runtime := runtimeSpecification[iatIndex].Runtime * int(time.Millisecond/granularity)
-			startTime := minuteIndex*int(time.Minute/granularity) + int(sum*float64(time.Second/granularity))
-			for i := startTime; i < startTime+runtime && i < len(concurrency); i++ {
-				if i >= 0 {
-					concurrency[i]++
-				}
-			}
-			iatIndex++
 		}
 	}
 
 	return concurrency
 }
 
-func perMinuteCounts(function *common.Function) []int {
-	if len(function.Specification.PerMinuteCount) != 0 {
-		return function.Specification.PerMinuteCount
-	}
-	return []int{len(function.Specification.IAT)}
-}
-
 func generateFunctionTimelineCompressed(function *common.Function, duration int, slowdown float64) []TimelineEntry {
 	IAT, runtimeSpecification := function.Specification.IAT, function.Specification.RuntimeSpecification
 	timeline := make([]TimelineEntry, 0, 2*len(IAT))
 
-	iatIndex := 0
-	for minuteIndex, invocationCount := range perMinuteCounts(function) {
-		if minuteIndex >= duration || iatIndex >= len(IAT) || iatIndex >= len(runtimeSpecification) {
+	sum := 0.0
+	for iatIndex, iat := range IAT {
+		if iatIndex >= len(runtimeSpecification) {
 			break
 		}
 
-		sum := 0.0
-		for range invocationCount {
-			if iatIndex >= len(IAT) || iatIndex >= len(runtimeSpecification) {
-				break
-			}
-			sum += IAT[iatIndex] / float64(time.Second/time.Microsecond)
-			runtime := float64(runtimeSpecification[iatIndex].Runtime) / float64(time.Second/time.Millisecond) * slowdown
-			startTime := float64(minuteIndex*int(time.Minute/time.Second)) + sum
-			timeline = append(timeline, TimelineEntry{Timestamp: startTime, Concurrency: 1})
-			timeline = append(timeline, TimelineEntry{Timestamp: startTime + runtime, Concurrency: -1})
-			iatIndex++
+		sum += iat / float64(time.Second/time.Microsecond)
+		if sum >= float64(duration*int(time.Minute/time.Second)) {
+			break
 		}
+		runtime := float64(runtimeSpecification[iatIndex].Runtime) / float64(time.Second/time.Millisecond) * slowdown
+		startTime := sum
+		timeline = append(timeline, TimelineEntry{Timestamp: startTime, Concurrency: 1})
+		timeline = append(timeline, TimelineEntry{Timestamp: startTime + runtime, Concurrency: -1})
 	}
 
 	slices.SortFunc(timeline, func(i, j TimelineEntry) int {

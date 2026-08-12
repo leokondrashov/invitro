@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -9,414 +8,110 @@ import (
 	"github.com/vhive-serverless/loader/pkg/common"
 )
 
-func injectInvocationData(function *common.Function, IAT common.IATMatrix, runtimeSpec common.RuntimeSpecificationMatrix) {
-	function.Specification = &common.FunctionSpecification{}
-	function.Specification.IAT = IAT
-	function.Specification.RuntimeSpecification = runtimeSpec
-
-	function.InvocationStats = &common.FunctionInvocationStats{}
-	function.InvocationStats.Invocations = make([]int, len(IAT))
-	for i := range function.InvocationStats.Invocations {
-		if len(IAT[i]) == 0 {
-			continue
-		}
-		function.InvocationStats.Invocations[i] = len(IAT[i]) - 1
-	}
+func functionWithInvocations(iat common.IATArray, runtime []common.RuntimeSpecification) *common.Function {
+	return &common.Function{Specification: &common.FunctionSpecification{
+		IAT:                  iat,
+		RuntimeSpecification: runtime,
+	}}
 }
 
-func TestGenerateTimeline(t *testing.T) {
+func TestGenerateTimelineUsesFlattenedIAT(t *testing.T) {
 	tests := []struct {
 		name        string
-		iat         common.IATMatrix
-		runtimeSpec common.RuntimeSpecificationMatrix
-		testFunc    func([]int) bool
 		granularity time.Duration
+		iat         common.IATArray
+		runtime     []common.RuntimeSpecification
+		assert      func(*testing.T, []int)
 	}{
-		{
-			name: "single inv",
-			iat: common.IATMatrix{
-				[]float64{0, 60000000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 1,
-						Memory:  1,
-					},
-				},
-			},
-			testFunc: func(timeline []int) bool {
-				return (len(timeline) == 1*60_000+60_000) && timeline[0] == 1 && timeline[1] == 0 && timeline[60] == 0 && timeline[60_000] == 0
-			},
-			granularity: time.Millisecond,
-		},
-		{
-			name: "single inv, 0.1ms granularity",
-			iat: common.IATMatrix{
-				[]float64{0, 60000000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 1,
-						Memory:  1,
-					},
-				},
-			},
-			testFunc: func(timeline []int) bool {
-				return (len(timeline) == 1*600_000+600_000) && timeline[0] == 1 && timeline[9] == 1 && timeline[10] == 0
-			},
-			granularity: time.Millisecond / 10,
-		},
-		{
-			name: "single long inv",
-			iat: common.IATMatrix{
-				[]float64{0, 60000000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 1000,
-						Memory:  1,
-					},
-				},
-			},
-			testFunc: func(timeline []int) bool {
-				return timeline[0] == 1 && timeline[1] == 1 && timeline[999] == 1 && timeline[1000] == 0
-			},
-			granularity: time.Millisecond,
-		},
-		{
-			name: "single long inv, 0.1ms granularity",
-			iat: common.IATMatrix{
-				[]float64{0, 60000000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 1000,
-						Memory:  1,
-					},
-				},
-			},
-			testFunc: func(timeline []int) bool {
-				return timeline[0] == 1 && timeline[1] == 1 && timeline[9999] == 1 && timeline[10000] == 0
-			},
-			granularity: time.Millisecond / 10,
-		},
-		{
-			name: "two inv",
-			iat: common.IATMatrix{
-				[]float64{0, 10000, 60000000 - 10000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 1,
-						Memory:  1,
-					},
-					{
-						Runtime: 1,
-						Memory:  1,
-					},
-				},
-			},
-			testFunc: func(timeline []int) bool {
-				return timeline[0] == 1 && timeline[1] == 0 && timeline[9] == 0 && timeline[10] == 1 && timeline[11] == 0
-			},
-			granularity: time.Millisecond,
-		},
-		{
-			name: "two inv, 0.1ms granularity",
-			iat: common.IATMatrix{
-				[]float64{0, 10000, 60000000 - 10000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 1,
-						Memory:  1,
-					},
-					{
-						Runtime: 1,
-						Memory:  1,
-					},
-				},
-			},
-			testFunc: func(timeline []int) bool {
-				return timeline[0] == 1 && timeline[10] == 0 && timeline[99] == 0 && timeline[100] == 1 && timeline[110] == 0
-			},
-			granularity: time.Millisecond / 10,
-		},
-		{
-			name: "two overlapping inv",
-			iat: common.IATMatrix{
-				[]float64{0, 10000, 60000000 - 10000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 100,
-						Memory:  1,
-					},
-					{
-						Runtime: 100,
-						Memory:  1,
-					},
-				},
-			},
-			testFunc: func(timeline []int) bool {
-				return timeline[0] == 1 && timeline[9] == 1 && timeline[10] == 2 && timeline[99] == 2 && timeline[100] == 1 && timeline[110] == 0
-			},
-			granularity: time.Millisecond,
-		},
-		{
-			name: "two overlapping inv, 0.1ms granularity",
-			iat: common.IATMatrix{
-				[]float64{0, 10000, 60000000 - 10000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 100,
-						Memory:  1,
-					},
-					{
-						Runtime: 100,
-						Memory:  1,
-					},
-				},
-			},
-			testFunc: func(timeline []int) bool {
-				return timeline[0] == 1 && timeline[99] == 1 && timeline[100] == 2 && timeline[999] == 2 && timeline[1000] == 1 && timeline[1100] == 0
-			},
-			granularity: time.Millisecond / 10,
-		},
+		{"single invocation", time.Millisecond, []float64{0}, []common.RuntimeSpecification{{Runtime: 1}}, func(t *testing.T, got []int) {
+			if got[0] != 1 || got[1] != 0 {
+				t.Fatal("unexpected timeline")
+			}
+		}},
+		{"single invocation, 0.1ms", time.Millisecond / 10, []float64{0}, []common.RuntimeSpecification{{Runtime: 1}}, func(t *testing.T, got []int) {
+			if got[0] != 1 || got[9] != 1 || got[10] != 0 {
+				t.Fatal("unexpected timeline")
+			}
+		}},
+		{"long invocation", time.Millisecond, []float64{0}, []common.RuntimeSpecification{{Runtime: 1000}}, func(t *testing.T, got []int) {
+			if got[0] != 1 || got[999] != 1 || got[1000] != 0 {
+				t.Fatal("unexpected timeline")
+			}
+		}},
+		{"long invocation, 0.1ms", time.Millisecond / 10, []float64{0}, []common.RuntimeSpecification{{Runtime: 1000}}, func(t *testing.T, got []int) {
+			if got[0] != 1 || got[9999] != 1 || got[10000] != 0 {
+				t.Fatal("unexpected timeline")
+			}
+		}},
+		{"two invocations", time.Millisecond, []float64{0, 10_000}, []common.RuntimeSpecification{{Runtime: 1}, {Runtime: 1}}, func(t *testing.T, got []int) {
+			if got[0] != 1 || got[10] != 1 || got[11] != 0 {
+				t.Fatal("unexpected timeline")
+			}
+		}},
+		{"two invocations, 0.1ms", time.Millisecond / 10, []float64{0, 10_000}, []common.RuntimeSpecification{{Runtime: 1}, {Runtime: 1}}, func(t *testing.T, got []int) {
+			if got[0] != 1 || got[100] != 1 || got[110] != 0 {
+				t.Fatal("unexpected timeline")
+			}
+		}},
+		{"overlapping invocations", time.Millisecond, []float64{0, 10_000}, []common.RuntimeSpecification{{Runtime: 100}, {Runtime: 100}}, func(t *testing.T, got []int) {
+			if got[0] != 1 || got[10] != 2 || got[100] != 1 || got[110] != 0 {
+				t.Fatal("unexpected timeline")
+			}
+		}},
+		{"overlapping invocations, 0.1ms", time.Millisecond / 10, []float64{0, 10_000}, []common.RuntimeSpecification{{Runtime: 100}, {Runtime: 100}}, func(t *testing.T, got []int) {
+			if got[0] != 1 || got[100] != 2 || got[1000] != 1 || got[1100] != 0 {
+				t.Fatal("unexpected timeline")
+			}
+		}},
 	}
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			function := &common.Function{}
-			injectInvocationData(function, test.iat, test.runtimeSpec)
-
-			timeline := generateFunctionTimeline(function, 1, test.granularity)
-			if !test.testFunc(timeline) {
-				t.Errorf("Test failed")
-				fmt.Printf("timeline: %v\n", timeline[:100])
-			}
+			test.assert(t, generateFunctionTimeline(functionWithInvocations(test.iat, test.runtime), 1, test.granularity))
 		})
 	}
 }
 
-func TestGenerateTimelineCompressed(t *testing.T) {
-	eps := 1e-9
-	tests := []struct {
-		name        string
-		slowdown    float64
-		iat         common.IATMatrix
-		runtimeSpec common.RuntimeSpecificationMatrix
-		expected    []TimelineEntry
-	}{
-		{
-			name:     "single inv",
-			slowdown: 1,
-			iat: common.IATMatrix{
-				[]float64{0, 60000000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 1,
-						Memory:  1,
-					},
-				},
-			},
-			expected: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1e-3,
-					Concurrency: 0,
-				},
-			},
-		},
-		{
-			name:     "single inv, slowed down",
-			slowdown: 1.5,
-			iat: common.IATMatrix{
-				[]float64{0, 60000000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 1,
-						Memory:  1,
-					},
-				},
-			},
-			expected: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1.5e-3,
-					Concurrency: 0,
-				},
-			},
-		},
-		{
-			name:     "single long inv",
-			slowdown: 1,
-			iat: common.IATMatrix{
-				[]float64{0, 60000000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 1000,
-						Memory:  1,
-					},
-				},
-			},
-			expected: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1,
-					Concurrency: 0,
-				},
-			},
-		},
-		{
-			name:     "two inv",
-			slowdown: 1,
-			iat: common.IATMatrix{
-				[]float64{0, 10000, 60000000 - 10000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 1,
-						Memory:  1,
-					},
-					{
-						Runtime: 1,
-						Memory:  1,
-					},
-				},
-			},
-			expected: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1e-3,
-					Concurrency: 0,
-				},
-				{
-					Timestamp:   10e-3,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   11e-3,
-					Concurrency: 0,
-				},
-			},
-		},
-		{
-			name:     "two overlapping inv",
-			slowdown: 1,
-			iat: common.IATMatrix{
-				[]float64{0, 10000, 60000000 - 10000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 100,
-						Memory:  1,
-					},
-					{
-						Runtime: 100,
-						Memory:  1,
-					},
-				},
-			},
-			expected: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   10e-3,
-					Concurrency: 2,
-				},
-				{
-					Timestamp:   100e-3,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   110e-3,
-					Concurrency: 0,
-				},
-			},
-		},
-		{
-			name:     "two simultaneous inv",
-			slowdown: 1,
-			iat: common.IATMatrix{
-				[]float64{0, 0, 60000000 - 10000},
-			},
-			runtimeSpec: common.RuntimeSpecificationMatrix{
-				[]common.RuntimeSpecification{
-					{
-						Runtime: 100,
-						Memory:  1,
-					},
-					{
-						Runtime: 100,
-						Memory:  1,
-					},
-				},
-			},
-			expected: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0,
-					Concurrency: 2,
-				},
-				{
-					Timestamp:   100e-3,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   100e-3,
-					Concurrency: 0,
-				},
-			},
-		},
+func TestFlattenedIATKeepsInitialEmptyMinutes(t *testing.T) {
+	function := functionWithInvocations(
+		common.IATArray{122_000_000},
+		[]common.RuntimeSpecification{{Runtime: 1, Memory: 1}},
+	)
+
+	compressed := generateFunctionTimelineCompressed(function, 3, 1)
+	if len(compressed) != 2 || compressed[0].Timestamp != 122 {
+		t.Fatalf("first invocation timestamp = %v, want 122", compressed)
 	}
 
+	timeline := generateFunctionTimeline(function, 3, time.Millisecond)
+	if timeline[122_000] != 1 {
+		t.Fatalf("expected invocation at 122 seconds, got %d", timeline[122_000])
+	}
+}
+
+func TestGenerateTimelineCompressed(t *testing.T) {
+	tests := []struct {
+		name     string
+		slowdown float64
+		iat      common.IATArray
+		runtime  []common.RuntimeSpecification
+		want     []TimelineEntry
+	}{
+		{"single invocation", 1, []float64{0}, []common.RuntimeSpecification{{Runtime: 1}}, []TimelineEntry{{0, 1}, {0.001, 0}}},
+		{"single invocation, slowed", 1.5, []float64{0}, []common.RuntimeSpecification{{Runtime: 1}}, []TimelineEntry{{0, 1}, {0.0015, 0}}},
+		{"long invocation", 1, []float64{0}, []common.RuntimeSpecification{{Runtime: 1000}}, []TimelineEntry{{0, 1}, {1, 0}}},
+		{"two invocations", 1, []float64{0, 10_000}, []common.RuntimeSpecification{{Runtime: 1}, {Runtime: 1}}, []TimelineEntry{{0, 1}, {0.001, 0}, {0.01, 1}, {0.011, 0}}},
+		{"overlapping invocations", 1, []float64{0, 10_000}, []common.RuntimeSpecification{{Runtime: 100}, {Runtime: 100}}, []TimelineEntry{{0, 1}, {0.01, 2}, {0.1, 1}, {0.11, 0}}},
+		{"simultaneous invocations", 1, []float64{0, 0}, []common.RuntimeSpecification{{Runtime: 100}, {Runtime: 100}}, []TimelineEntry{{0, 1}, {0, 2}, {0.1, 1}, {0.1, 0}}},
+	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			function := &common.Function{}
-			injectInvocationData(function, test.iat, test.runtimeSpec)
-
-			timeline := generateFunctionTimelineCompressed(function, 1, test.slowdown)
-			if len(timeline) != len(test.expected) {
-				t.Errorf("Wrong timeline length: %v, expected %v", timeline, test.expected)
+			got := generateFunctionTimelineCompressed(functionWithInvocations(test.iat, test.runtime), 1, test.slowdown)
+			if len(got) != len(test.want) {
+				t.Fatalf("timeline length = %d, want %d", len(got), len(test.want))
 			}
-			for i, entry := range timeline {
-				if math.Abs(entry.Timestamp-test.expected[i].Timestamp) > eps || entry.Concurrency != test.expected[i].Concurrency {
-					t.Errorf("Wrong entry at %v: %v, expected %v", i, entry, test.expected[i])
+			for i := range test.want {
+				if got[i].Concurrency != test.want[i].Concurrency || math.Abs(got[i].Timestamp-test.want[i].Timestamp) > 1e-9 {
+					t.Errorf("entry %d = %+v, want %+v", i, got[i], test.want[i])
 				}
 			}
 		})
@@ -424,398 +119,56 @@ func TestGenerateTimelineCompressed(t *testing.T) {
 }
 
 func TestAverageTimeline(t *testing.T) {
-	eps := 1e-9
-
 	tests := []struct {
 		name     string
 		timeline []TimelineEntry
-		expected []AvgTimelineEntry
+		want     []AvgTimelineEntry
 	}{
-		{
-			name:     "empty timeline",
-			timeline: []TimelineEntry{},
-			expected: []AvgTimelineEntry{},
-		},
-		{
-			name: "long single inv",
-			timeline: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1,
-					Concurrency: 0,
-				},
-			},
-			expected: []AvgTimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1,
-					Concurrency: 0,
-				},
-			},
-		},
-		{
-			name: "short single inv",
-			timeline: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1e-3,
-					Concurrency: 0,
-				},
-			},
-			expected: []AvgTimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1e-3,
-				},
-			},
-		},
-		{
-			name: "late short single inv",
-			timeline: []TimelineEntry{
-				{
-					Timestamp:   10,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   10 + 1e-3,
-					Concurrency: 0,
-				},
-			},
-			expected: []AvgTimelineEntry{
-				{
-					Timestamp:   10,
-					Concurrency: 1e-3,
-				},
-			},
-		},
-		{
-			name: "spill",
-			timeline: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1.5,
-					Concurrency: 0,
-				},
-			},
-			expected: []AvgTimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1,
-					Concurrency: 0.5,
-				},
-			},
-		},
-		{
-			name: "two overlapping inv",
-			timeline: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0.5,
-					Concurrency: 2,
-				},
-				{
-					Timestamp:   1,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1.5,
-					Concurrency: 0,
-				},
-			},
-			expected: []AvgTimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1.5,
-				},
-				{
-					Timestamp:   1,
-					Concurrency: 0.5,
-				},
-			},
-		},
-		{
-			name: "two non-overlapping inv",
-			timeline: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0.1,
-					Concurrency: 0,
-				},
-				{
-					Timestamp:   0.5,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0.6,
-					Concurrency: 0,
-				},
-			},
-			expected: []AvgTimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 0.2,
-				},
-			},
-		},
-		{
-			name: "two simultaneous inv",
-			timeline: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0,
-					Concurrency: 2,
-				},
-				{
-					Timestamp:   1.5,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1.5,
-					Concurrency: 0,
-				},
-			},
-			expected: []AvgTimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 2,
-				},
-				{
-					Timestamp:   1,
-					Concurrency: 1,
-				},
-			},
-		},
-		{
-			name: "empty granularity",
-			timeline: []TimelineEntry{
-				{
-					Timestamp:   0.1,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0.9,
-					Concurrency: 0,
-				},
-				{
-					Timestamp:   2.1,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   2.9,
-					Concurrency: 0,
-				},
-			},
-			expected: []AvgTimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 0.8,
-				},
-				{
-					Timestamp:   1,
-					Concurrency: 0,
-				},
-				{
-					Timestamp:   2,
-					Concurrency: 0.8,
-				},
-			},
-		},
+		{"empty timeline", []TimelineEntry{}, []AvgTimelineEntry{}},
+		{"long single invocation", []TimelineEntry{{0, 1}, {1, 0}}, []AvgTimelineEntry{{0, 1}, {1, 0}}},
+		{"short single invocation", []TimelineEntry{{0, 1}, {0.001, 0}}, []AvgTimelineEntry{{0, 0.001}}},
+		{"late short invocation", []TimelineEntry{{10, 1}, {10.001, 0}}, []AvgTimelineEntry{{10, 0.001}}},
+		{"spill", []TimelineEntry{{0, 1}, {1.5, 0}}, []AvgTimelineEntry{{0, 1}, {1, 0.5}}},
+		{"overlapping invocations", []TimelineEntry{{0, 1}, {0.5, 2}, {1, 1}, {1.5, 0}}, []AvgTimelineEntry{{0, 1.5}, {1, 0.5}}},
+		{"non-overlapping invocations", []TimelineEntry{{0, 1}, {0.1, 0}, {0.5, 1}, {0.6, 0}}, []AvgTimelineEntry{{0, 0.2}}},
+		{"simultaneous invocations", []TimelineEntry{{0, 1}, {0, 2}, {1.5, 1}, {1.5, 0}}, []AvgTimelineEntry{{0, 2}, {1, 1}}},
+		{"empty granularity", []TimelineEntry{{0.1, 1}, {0.9, 0}, {2.1, 1}, {2.9, 0}}, []AvgTimelineEntry{{0, 0.8}, {1, 0}, {2, 0.8}}},
 	}
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result := averageTimeline(test.timeline, time.Second)
-
-			if len(result) != len(test.expected) {
-				t.Errorf("Wrong result length: %v, expected %v", result, test.expected)
-			}
-
-			for i, entry := range result {
-				if math.Abs(entry.Timestamp-test.expected[i].Timestamp) > eps || math.Abs(entry.Concurrency-test.expected[i].Concurrency) > eps {
-					t.Errorf("Wrong entry at %v: %v, expected %v", i, entry, test.expected[i])
-				}
-			}
+			assertAverageTimeline(t, averageTimeline(test.timeline, time.Second), test.want)
 		})
 	}
 }
 
 func TestAverageTimelineGranularity(t *testing.T) {
-	eps := 1e-9
-
 	tests := []struct {
 		name        string
 		timeline    []TimelineEntry
-		expected    []AvgTimelineEntry
 		granularity time.Duration
+		want        []AvgTimelineEntry
 	}{
-		{
-			name:        "empty timeline",
-			timeline:    []TimelineEntry{},
-			expected:    []AvgTimelineEntry{},
-			granularity: time.Second,
-		},
-		{
-			name: "single inv",
-			timeline: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1,
-					Concurrency: 0,
-				},
-			},
-			expected: []AvgTimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1,
-					Concurrency: 0,
-				},
-			},
-			granularity: time.Second,
-		},
-		{
-			name: "single inv, 0.1s granularity",
-			timeline: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1,
-					Concurrency: 0,
-				},
-			},
-			expected: []AvgTimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0.1,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0.2,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0.3,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0.4,
-					Concurrency: 1,
-				}, {
-					Timestamp:   0.5,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0.6,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0.7,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0.8,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   0.9,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1,
-					Concurrency: 0,
-				},
-			},
-			granularity: time.Second / 10,
-		},
-		{
-			name: "single inv, 10s",
-			timeline: []TimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   1,
-					Concurrency: 0,
-				},
-			},
-			expected: []AvgTimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 0.1,
-				},
-			},
-			granularity: 10 * time.Second,
-		},
-		{
-			name: "single inv, 10s, off granularity",
-			timeline: []TimelineEntry{
-				{
-					Timestamp:   2,
-					Concurrency: 1,
-				},
-				{
-					Timestamp:   3,
-					Concurrency: 0,
-				},
-			},
-			expected: []AvgTimelineEntry{
-				{
-					Timestamp:   0,
-					Concurrency: 0.1,
-				},
-			},
-			granularity: 10 * time.Second,
-		},
+		{"empty timeline", []TimelineEntry{}, time.Second, []AvgTimelineEntry{}},
+		{"one-second invocation", []TimelineEntry{{0, 1}, {1, 0}}, time.Second, []AvgTimelineEntry{{0, 1}, {1, 0}}},
+		{"tenths of a second", []TimelineEntry{{0, 1}, {1, 0}}, time.Second / 10, []AvgTimelineEntry{{0, 1}, {0.1, 1}, {0.2, 1}, {0.3, 1}, {0.4, 1}, {0.5, 1}, {0.6, 1}, {0.7, 1}, {0.8, 1}, {0.9, 1}, {1, 0}}},
+		{"ten-second window", []TimelineEntry{{0, 1}, {1, 0}}, 10 * time.Second, []AvgTimelineEntry{{0, 0.1}}},
+		{"off-window invocation", []TimelineEntry{{2, 1}, {3, 0}}, 10 * time.Second, []AvgTimelineEntry{{0, 0.1}}},
 	}
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result := averageTimeline(test.timeline, test.granularity)
-
-			if len(result) != len(test.expected) {
-				t.Errorf("Wrong result length: %v, expected %v", result, test.expected)
-			}
-
-			for i, entry := range result {
-				if math.Abs(entry.Timestamp-test.expected[i].Timestamp) > eps || math.Abs(entry.Concurrency-test.expected[i].Concurrency) > eps {
-					t.Errorf("Wrong entry at %v: %v, expected %v", i, entry, test.expected[i])
-				}
-			}
+			assertAverageTimeline(t, averageTimeline(test.timeline, test.granularity), test.want)
 		})
+	}
+}
+
+func assertAverageTimeline(t *testing.T, got, want []AvgTimelineEntry) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("average timeline length = %d, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if math.Abs(got[i].Timestamp-want[i].Timestamp) > 1e-9 || math.Abs(got[i].Concurrency-want[i].Concurrency) > 1e-9 {
+			t.Errorf("entry %d = %+v, want %+v", i, got[i], want[i])
+		}
 	}
 }
