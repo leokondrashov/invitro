@@ -100,8 +100,22 @@ func commonInit(outputFilename string, tracePath string, duration, skip_duration
 
 	writer := make(chan interface{}, 1000)
 
-	traceParser := trace.NewAzureParser(tracePath, duration, "", skip_duration)
-	functions := traceParser.Parse()
+	traceInfo, err := os.Stat(tracePath)
+	if err != nil {
+		log.Fatalf("Unable to access trace path %q: %v", tracePath, err)
+	}
+
+	// Azure 2021 traces consist of one CSV file, whereas Azure 2019 traces
+	// are directories containing invocations.csv, durations.csv, and memory.csv.
+	// The Azure 2021 parser already creates a function specification from the
+	// invocation timestamps and durations, so it must not be regenerated below.
+	azure2021Trace := !traceInfo.IsDir()
+	var functions []*common.Function
+	if azure2021Trace {
+		functions = trace.NewAzure2021Parser(tracePath, duration, "").Parse()
+	} else {
+		functions = trace.NewAzureParser(tracePath, duration, "", skip_duration).Parse()
+	}
 
 	log.Infof("Traces contain the following %d functions:\n", len(functions))
 
@@ -118,10 +132,14 @@ func commonInit(outputFilename string, tracePath string, duration, skip_duration
 
 	specGenerator := spec.NewSpecificationGenerator(randSeed)
 
-	for i, function := range functions {
-		spec := specGenerator.GenerateInvocationData(function, iatType, shift, common.MinuteGranularity)
-		functions[i].Specification = spec
+	if !azure2021Trace {
+		for i, function := range functions {
+			spec := specGenerator.GenerateInvocationData(function, iatType, shift, common.MinuteGranularity)
+			functions[i].Specification = spec
+		}
 	}
+
+	log.Infof("functions: %v", functions[0].Specification)
 
 	return writer, &allRecordsWritten, functions
 }

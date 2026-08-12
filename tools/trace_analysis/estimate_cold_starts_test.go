@@ -2,8 +2,28 @@ package main
 
 import (
 	"math"
+	"path/filepath"
 	"testing"
 )
+
+func TestCommonInitAcceptsAzure2021InvocationFile(t *testing.T) {
+	outputPath := filepath.Join(t.TempDir(), "output.csv")
+	tracePath := filepath.Join("..", "..", "pkg", "trace", "test_data", "Azure2021", "Azure2021_30.csv")
+
+	writer, written, functions := commonInit(outputPath, tracePath, 3, 0, "exponential", 42)
+	close(writer)
+	written.Wait()
+
+	if len(functions) != 14 {
+		t.Fatalf("expected 14 Azure 2021 functions, got %d", len(functions))
+	}
+
+	for _, function := range functions {
+		if function.Specification == nil || len(function.Specification.IAT) == 0 {
+			t.Fatal("Azure 2021 function specification was not preserved")
+		}
+	}
+}
 
 func TestGetColdStarts(t *testing.T) {
 	eps := 1e-9
