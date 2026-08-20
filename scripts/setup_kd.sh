@@ -11,11 +11,16 @@ make WHAT=cmd/kubelet
 
 KD_KUBELET="$PWD/_output/bin/kubelet"
 
+MASTER_NODE=$(kubectl get nodes \
+  -l node-role.kubernetes.io/control-plane \
+  -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+
 kubectl -n kube-system get cm kubeadm-config \
   -o jsonpath='{.data.ClusterConfiguration}' \
   | yq '
       .imageRepository = "shengqipku" |
-      .kubernetesVersion = "v1.32.0-kubedirect"
+      .kubernetesVersion = "v1.32.0-kubedirect" |
+      .controlPlaneEndpoint = "'$MASTER_NODE':6443"
     ' > /tmp/clusterconfig.yaml
 
 kubectl -n kube-system patch cm kubeadm-config \
@@ -23,13 +28,8 @@ kubectl -n kube-system patch cm kubeadm-config \
   -p "$(jq -n --rawfile cfg /tmp/clusterconfig.yaml \
     '{data:{ClusterConfiguration:$cfg}}')"
 
-MASTER_NODE=$(kubectl get nodes \
-  -l node-role.kubernetes.io/control-plane \
-  -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-
 scp /tmp/clusterconfig.yaml $MASTER_NODE:/tmp/clusterconfig.yaml
 ssh $MASTER_NODE '
-sudo kubeadm init phase control-plane all --config /tmp/clusterconfig.yaml
 sudo kubeadm init phase control-plane all --config /tmp/clusterconfig.yaml
 sudo kubeadm init phase addon kube-proxy --config /tmp/clusterconfig.yaml
 '
