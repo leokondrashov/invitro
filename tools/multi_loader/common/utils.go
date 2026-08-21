@@ -152,7 +152,7 @@ func DetermineNodeIP(node NodeType) string {
 
 func DeterminePodIP(podNamePrefix PodType) string {
 	// Get the pod alias
-	cmdPodName := exec.Command("sh", "-c", fmt.Sprintf("kubectl get pods -n knative-serving --no-headers | grep %s- | awk '{print $1}'", podNamePrefix))
+	cmdPodName := exec.Command("sh", "-c", fmt.Sprintf("kubectl get pods -n knative-serving --no-headers | grep Running | grep %s- | awk '{print $1}'", podNamePrefix))
 	out, err := cmdPodName.CombinedOutput()
 
 	if err != nil {
