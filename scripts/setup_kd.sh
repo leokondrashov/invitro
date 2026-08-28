@@ -11,6 +11,20 @@ make WHAT=cmd/kubelet
 
 KD_KUBELET="$PWD/_output/bin/kubelet"
 
+cd "$HOME/kubedirect-ae/cmd/kubelet"
+
+go build
+
+for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
+    echo "Updating custom kubelet on $node"
+
+    scp kubelet $node:~/kubelet.custom
+    ssh $node '
+      tmux new -s kubelet -d
+      tmux send-keys -t kubelet "~/kubelet.custom --simulate --ready-after 20" ENTER
+    '
+done
+
 MASTER_NODE=$(kubectl get nodes \
   -l node-role.kubernetes.io/control-plane \
   -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
@@ -19,6 +33,13 @@ kubectl -n kube-system get cm kubeadm-config \
   -o jsonpath='{.data.ClusterConfiguration}' \
   | yq '
       .imageRepository = "shengqipku" |
+      .dns.imageRepository = "registry.k8s.io" |
+      .etcd.local.imageRepository = "registry.k8s.io" |
+      .apiServer.extraArgs = (
+        (.apiServer.extraArgs // []) |
+        map(select(.name != "feature-gates")) +
+        [{"name": "feature-gates", "value": "AuthorizeNodeWithSelectors=false"}]
+      ) |
       .kubernetesVersion = "v1.32.0-kubedirect" |
       .controlPlaneEndpoint = "'$MASTER_NODE':6443"
     ' > /tmp/clusterconfig.yaml
@@ -28,10 +49,11 @@ kubectl -n kube-system patch cm kubeadm-config \
   -p "$(jq -n --rawfile cfg /tmp/clusterconfig.yaml \
     '{data:{ClusterConfiguration:$cfg}}')"
 
-scp /tmp/clusterconfig.yaml $MASTER_NODE:/tmp/clusterconfig.yaml
-ssh $MASTER_NODE '
-sudo kubeadm init phase control-plane all --config /tmp/clusterconfig.yaml
-sudo kubeadm init phase addon kube-proxy --config /tmp/clusterconfig.yaml
+ssh "$MASTER_NODE" '
+sudo kubeadm upgrade apply v1.32.0-kubedirect \
+    --allow-experimental-upgrades \
+    --force \
+    --yes
 '
 
 for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do

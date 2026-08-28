@@ -17,14 +17,18 @@ kubectl -n kube-system patch cm kubeadm-config \
   -p "$(jq -n --rawfile cfg /tmp/clusterconfig.yaml \
     '{data:{ClusterConfiguration:$cfg}}')"
 
-scp /tmp/clusterconfig.yaml $MASTER_NODE:/tmp/clusterconfig.yaml
-ssh $MASTER_NODE '
-sudo kubeadm init phase control-plane all --config /tmp/clusterconfig.yaml
-sudo kubeadm init phase addon kube-proxy --config /tmp/clusterconfig.yaml
+ssh "$MASTER_NODE" '
+sudo kubeadm upgrade apply v1.32.0 \
+    --force \
+    --yes
 '
 
 for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
     echo "Restoring kubelet on $node"
+
+    ssh $node sudo chmod 777 /tmp/kubelet.stock
+
+    scp /tmp/kubelet.stock.backup $node:/tmp/kubelet.stock
 
     ssh "$node" '
         set -e
@@ -33,6 +37,7 @@ for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
             /tmp/kubelet.stock /usr/bin/kubelet
         sudo systemctl start kubelet
         sudo systemctl is-active --quiet kubelet
+	tmux send-keys -t kubelet C-c
     '
 
     # Wait until Kubernetes sees the node healthy again.
@@ -41,4 +46,3 @@ for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
         "node/$node" \
         --timeout=120s
 done
-
