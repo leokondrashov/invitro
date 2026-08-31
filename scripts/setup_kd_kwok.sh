@@ -25,7 +25,7 @@ for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
       tmux new -s kubelet -d
       tmux send-keys -t kubelet C-c
       sleep 10
-      tmux send-keys -t kubelet "sudo ~/kubelet.custom -snapshotter proxy -dbg -ready-after 0" ENTER
+      tmux send-keys -t kubelet "sudo ~/kubelet.custom --simulate --ready-after 20" ENTER
     '
 done
 

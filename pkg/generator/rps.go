@@ -161,7 +161,7 @@ func CreateRPSFunctions(cfg *config.LoaderConfiguration, dcfg *config.DirigentCo
 		}
 
 		result = append(result, &common.Function{
-			Name: fmt.Sprintf("warm-%s-%d", nameInfix, rand.Int()),
+			Name: fmt.Sprintf("warm-%s-%d", nameInfix, rand.Int31()),
 
 			InvocationStats:  &common.FunctionInvocationStats{Invocations: warmFunctionCount},
 			RuntimeStats:     &common.FunctionRuntimeStats{Average: float64(cfg.RpsRuntimeMs)},
@@ -197,7 +197,7 @@ func CreateRPSFunctions(cfg *config.LoaderConfiguration, dcfg *config.DirigentCo
 		}
 
 		result = append(result, &common.Function{
-			Name: fmt.Sprintf("cold-%s-%d-%d", nameInfix, i, rand.Int()),
+			Name: fmt.Sprintf("cold-%s-%d-%d", nameInfix, i, rand.Int31()),
 
 			InvocationStats:  &common.FunctionInvocationStats{Invocations: coldFunctionCount[i]},
 			MemoryStats:      &common.FunctionMemoryStats{Percentile100: float64(cfg.RpsMemoryMB)},

@@ -62,7 +62,7 @@ func (p *MapperTraceParser) extractFunctions(mapperOutput functionToProxy, deplo
 		predeploymentPath := deploymentInfo[proxyFunction].PredeploymentPath
 		invocationParams := deploymentInfo[proxyFunction].InvocationParams
 		function := &common.Function{
-			Name: fmt.Sprintf("%s-%d-%d", proxyFunction, i, p.functionNameGenerator.Uint64()),
+			Name: fmt.Sprintf("%s-%d-%d", proxyFunction, i, p.functionNameGenerator.Uint32()),
 
 			InvocationStats:   &invocationStats,
 			RuntimeStats:      runtimeByHashFunction[hashFunction],
