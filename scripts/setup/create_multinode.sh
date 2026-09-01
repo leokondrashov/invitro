@@ -372,12 +372,5 @@ function distribute_loader_ssh_key() {
         setup_fakes
     fi
 
-    server_exec $MASTER_NODE "sudo cat /etc/kubernetes/manifests/kube-controller-manager.yaml | \
-        yq '(.spec.containers[0].command) += [\"--kube-api-qps=1000\", \"--kube-api-burst=2000\", \"--concurrent-deployment-syncs=1000\", \"--concurrent-replicaset-syncs=1000\",\
-        \"--concurrent-service-endpoint-syncs=50\", \"--concurrent-endpoint-syncs=1000\"]' > tmp.yaml && sudo mv tmp.yaml /etc/kubernetes/manifests/kube-controller-manager.yaml"
-
-    server_exec $MASTER_NODE "sudo cat /etc/kubernetes/manifests/etcd.yaml | \
-        yq '(.spec.containers[0].command) += [\"--quota-backend-bytes=16000000000\"]' > tmp.yaml && sudo mv tmp.yaml /etc/kubernetes/manifests/etcd.yaml"
-
     sleep 60
 }

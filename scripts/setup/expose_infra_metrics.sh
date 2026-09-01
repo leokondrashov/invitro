@@ -56,10 +56,13 @@ server_exec() {
 	server_exec "curl -sL $commit_version/config/serving-monitors.yaml | sed 's/interval: 30s/interval: 2s/g' | kubectl apply -f -"
 	server_exec "curl -sL $commit_version/config/configmap-serving-dashboard.json | sed 's/"namespace": "knative-serving"/"namespace": "monitoring"/g' | kubectl apply -f -"
 
-	#* Bind addresses of the control manager and scheduler to "0.0.0.0" so that prometheus can scrape them from any domains.
-	server_exec 'cd loader; sudo kubeadm init phase control-plane controller-manager --config config/kubeadm_init.yaml --v=7'
-	server_exec 'cd loader; sudo kubeadm init phase control-plane scheduler --config config/kubeadm_init.yaml --v=7'
-	server_exec 'cd loader; sudo kubeadm init phase addon kube-proxy --config config/kubeadm_init.yaml --v=7'
+	#* Merge the metric endpoints into the kubeadm-managed ConfigMaps. This avoids
+	#* replacing the cluster configuration with the init-time configuration.
+	server_exec 'cd loader; bash scripts/setup/patch_kubeadm_metrics_config.sh'
+
+	#* Regenerate the control-plane static Pod manifests from the merged
+	#* kubeadm configuration. Certificate renewal is unrelated to metrics.
+	server_exec 'sudo kubeadm upgrade node phase control-plane --certificate-renewal=false --v=7'
 
 	#* Restart the kube-proxy to apply the changes.
 	server_exec 'kubectl delete pod -l k8s-app=kube-proxy -n kube-system'
