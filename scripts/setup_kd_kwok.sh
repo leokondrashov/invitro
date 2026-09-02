@@ -16,9 +16,9 @@ cd "$HOME/kubedirect-ae/cmd/kubelet"
 go build
 
 for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
-    if [[ $node == *fake* ]] then
-      kubectl annotate $node kubedirect/kubelet-service-override=true
-      kubectl annotate $node kubedirect/kubelet-service-addr=10.0.1.3:25010 --overwrite
+    if [[ $node =~ fake ]] then
+      kubectl annotate node $node kubedirect/kubelet-service-override=true
+      kubectl annotate node $node kubedirect/kubelet-service-addr=10.0.1.3:25010 --overwrite
       continue
     fi
     echo "Updating custom kubelet on $node"
@@ -66,7 +66,7 @@ sudo kubeadm upgrade apply v1.32.0-kubedirect \
 '
 
 for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
-    [[ $node == *fake* ]] && continue
+    [[ $node =~ fake ]] && continue
 
     echo "Updating kubelet on $node"
 
