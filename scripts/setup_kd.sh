@@ -16,9 +16,14 @@ cd "$HOME/kubedirect-ae/cmd/kubelet"
 go build
 
 for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
+    if [[ $node == *fake* ]] then
+      kubectl annotate $node kubedirect/kubelet-service-override=true
+      kubectl annotate $node kubedirect/kubelet-service-addr=10.0.1.3:25010 --overwrite
+      continue
+    fi
     echo "Updating custom kubelet on $node"
 
-    kubectl annotate $node kubedirect/kubelet-service-addr=10.0.1.129:25010 --overwrite
+    kubectl annotate $node kubedirect/kubelet-service-addr-
 
     scp kubelet $node:~/kubelet.custom
     ssh $node '
@@ -61,6 +66,8 @@ sudo kubeadm upgrade apply v1.32.0-kubedirect \
 '
 
 for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
+    [[ $node == *fake* ]] && continue
+    
     echo "Updating kubelet on $node"
 
     scp "$KD_KUBELET" "$node:/tmp/kubelet.kubedirect"
@@ -68,7 +75,7 @@ for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
     ssh "$node" '
         set -e
         sudo systemctl stop kubelet
-	sudo cp /usr/bin/kubelet /tmp/kubelet.stock
+        sudo cp /usr/bin/kubelet /tmp/kubelet.stock
         sudo install -o root -g root -m 0755 \
             /tmp/kubelet.kubedirect /usr/bin/kubelet
         sudo systemctl start kubelet
