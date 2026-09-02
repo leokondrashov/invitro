@@ -24,7 +24,7 @@ sudo kubeadm upgrade apply v1.32.0 \
 '
 
 for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
-    if [[ $node =~ fake ]] && continue
+    [[ $node =~ fake ]] && continue
     echo "Restoring kubelet on $node"
 
     ssh $node sudo chmod 777 /tmp/kubelet.stock
