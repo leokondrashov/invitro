@@ -30,7 +30,7 @@ for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
       tmux new -s kubelet -d
       tmux send-keys -t kubelet C-c
       sleep 10
-      tmux send-keys -t kubelet "sudo ~/kubelet.custom --simulate --ready-after 20" ENTER
+      tmux send-keys -t kubelet "sudo ~/kubelet.custom --simulate --ready-after 20 2>&1 | tee ~/kubelet.log" ENTER
     '
 done
 
@@ -88,3 +88,5 @@ for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
         "node/$node" \
         --timeout=120s
 done
+
+sleep 60
