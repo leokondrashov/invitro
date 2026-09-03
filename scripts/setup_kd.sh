@@ -23,7 +23,7 @@ for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
     fi
     echo "Updating custom kubelet on $node"
 
-    kubectl annotate $node kubedirect/kubelet-service-addr-
+    kubectl annotate node $node kubedirect/kubelet-service-addr-
 
     scp kubelet $node:~/kubelet.custom
     ssh $node '
