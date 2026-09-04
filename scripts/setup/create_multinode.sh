@@ -286,6 +286,11 @@ function distribute_loader_ssh_key() {
     shift # make argument list only contain worker nodes (drops master node)
 
     setup_master
+
+    server_exec $MASTER_NODE "kubectl get cm kubelet-config -n kube-system -o jsonpath='{.data.kubelet}' > kubelet-config.yaml"
+    server_exec $MASTER_NODE "yq -i '.containerLogMaxSizeMB = 512 | .containerLogMaxFiles = 5' kubelet-config.yaml"
+    server_exec $MASTER_NODE "kubectl patch configmap kubelet-config -n kube-system --type merge -p \"\$(jq -n --rawfile kubelet kubelet-config.yaml '{\"data\":{\"kubelet\":\$kubelet}}')\""
+
     setup_workers "$@"
 
     if [ $PODS_PER_NODE -gt 240 ]; then
@@ -371,6 +376,8 @@ function distribute_loader_ssh_key() {
     if [ "$ENABLE_KWOK" = true ]; then
         setup_fakes
     fi
+
+    server_exec $LOADER_NODE "cp /usr/bin/kubelet /tmp/kubelet.stock.backup"
 
     sleep 60
 }

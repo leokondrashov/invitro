@@ -28,7 +28,7 @@ etcd:
       - name: listen-metrics-urls
         value: http://0.0.0.0:2381
       - name: quota-backend-bytes
-        value: "16000000000"
+        value: "8000000000"
 imageRepository: registry.k8s.io
 kubernetesVersion: v1.32.0
 networking:
