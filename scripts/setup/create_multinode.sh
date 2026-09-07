@@ -353,6 +353,9 @@ function distribute_loader_ssh_key() {
     server_exec $MASTER_NODE "kubectl patch clusterrole knative-serving-activator-cluster --type='json' -p \
         '[{\"op\": \"add\", \"path\": \"/rules/-\", \"value\": {\"apiGroups\": [\"\"], \"resources\": [\"nodes\"], \"verbs\": [\"get\", \"list\", \"watch\"]}}]'"
 
+    server_exec $MASTER_NODE "kubectl patch role knative-serving-activator -n knative-serving --type=json -p \
+        '[{\"op\": \"add\", \"path\": \"/rules/-\", \"value\": {\"apiGroups\": [\"\"], \"resources\": [\"pods\"], \"verbs\": [\"get\", \"list\", \"create\", \"delete\"]}}]'"
+
     server_exec $MASTER_NODE "kubectl patch configmap config-deployment -n knative-serving -p '{\"data\": {\"queue-sidecar-image\": \"lkondras/queue-39be6f1d08a095bd076a71d288d295b6:fast-drain\"}}'"
 
     # update limits
